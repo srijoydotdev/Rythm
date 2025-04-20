@@ -1,6 +1,6 @@
 // src/app/song/page.tsx
 "use client";
-
+import Link from "next/link";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "@/components/ui/Navbar";
 import LibrarySidebar from "@/components/ui/library";
@@ -10,7 +10,7 @@ import SongCard from "@/components/ui/songcard";
 import BottomNav from "@/components/ui/navmob";
 import { Song, Artist } from "@/types";
 import toast from "react-hot-toast";
-
+import TopNav from "@/components/ui/topNav";
 // Define interfaces for clarity and type safety
 interface ApiResponse<T> {
   success: boolean;
@@ -258,18 +258,18 @@ export default function Music() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#080808] text-white">
       {/* Navbar for desktop */}
       <div className="fixed top-0 left-0 right-0 z-10 hidden md:block">
         <Navbar />
       </div>
+      <div className="fixed top-0 left-0 right-0 z-10  md:hidden">
+        <TopNav/>
+      </div>
+
 
       {/* Mobile header */}
-      <div className="fixed top-4 left-0 right-0 z-10 md:hidden">
-        <h1 className="text-xl sm:text-lg font-bold text-white text-center mt-3 mb-10 tracking-tight">
-          Your Vibe, Amplified
-        </h1>
-      </div>
+     
 
       {/* Bottom navigation for mobile */}
       <div className="fixed bottom-0 left-0 right-0 md:hidden z-50">
@@ -291,13 +291,28 @@ export default function Music() {
             <div className="mb-4 p-4 bg-red-500 text-white rounded">{error}</div>
           )}
 
+          {/* mobile layout */}
+          <div className="md:hidden mt-3">
+            <div>
+              <h2 className="font-semibold text-xl text-white">Artist Recomendation</h2>
+
+              <div className="flex overflow-x-auto space-x-4 pb-2">
+              {suggestedArtists.map((artist) => (
+                  <ArtistCard  key={artist.id} artist={artist} />
+                ))}
+              </div>
+            </div>
+         
+
+
+          </div>
           {/* Genre filters */}
-          <div className="flex items-center space-x-3 mb-6 overflow-x-auto">
+          <div className="flex items-center space-x-3 mb-6 overflow-x-auto ">
             {genres.map((genre) => (
               <button
                 key={genre}
                 onClick={() => setActiveGenre(genre)}
-                className={`py-1 mt-4 px-6 rounded-full font-medium transition-colors whitespace-nowrap ${
+                className={`py-1 mt-4 px-6 rounded-full hidden md:block font-medium transition-colors whitespace-nowrap ${
                   activeGenre === genre
                     ? "bg-white text-black"
                     : "bg-black text-white border border-white/20 hover:bg-white/10"
@@ -337,31 +352,26 @@ export default function Music() {
           </div>
 
           {/* Followed artists */}
-          <div className="mb-12">
+          <div className="mb-12 hidden md:block">
             <h2 className="text-2xl font-bold mb-4">Your Artists</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {followedArtists.map((artist) => (
-                <ArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  onFollow={handleFollow}
-                  aria-label={`Follow ${artist.name}`}
-                />
+                <ArtistCard key={artist.id} artist={artist} />
               ))}
             </div>
           </div>
-
-          {/* Suggested artists */}
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Suggested Artists</h2>
+          
+          {/* Suggested Artists - Desktop (Grid Layout) */}
+          <div className="hidden md:block">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-2xl font-bold">Suggested Artists</h2>
+              <Link href="/artists" className="text-yellow-500 text-sm font-medium hover:underline">
+                See More
+              </Link>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {suggestedArtists.map((artist) => (
-                <ArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  onFollow={handleFollow}
-                  aria-label={`Follow ${artist.name}`}
-                />
+                <ArtistCard key={artist.id} artist={artist} />
               ))}
             </div>
           </div>

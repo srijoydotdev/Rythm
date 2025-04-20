@@ -49,7 +49,7 @@ export default function LibrarySidebar() {
 
   return (
     <motion.div
-      className="h-screen   bg-black/80 backdrop-blur-md border-r border-white/10 text-white flex flex-col mt-3 p-4"
+      className="h-screen   bg-[#080808] backdrop-blur-md border-r border-white/10 text-white flex flex-col mt-3 p-4"
       variants={sidebarVariants}
       initial="expanded"
       animate={isExpanded ? "expanded" : "collapsed"}

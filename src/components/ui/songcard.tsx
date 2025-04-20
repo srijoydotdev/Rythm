@@ -8,6 +8,7 @@ interface SongCardProps {
   viewMode?: "grid" | "list";
   toggleLike?: (songId: string) => Promise<void>;
   toggleFollow?: (artistId: string) => Promise<void>;
+  className?: string;
 }
 
 export default function SongCard({

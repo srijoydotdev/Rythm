@@ -120,3 +120,42 @@
   scrollbar-width: none;
   -ms-overflow-style: none; /* Hide scrollbar for IE and legacy Edge */
 }
+.progress-bar {
+  --thumb-color: white; /* Color of the thumb */
+  --progress-color: white; /* Color of the progress track */
+  --track-color: #333333; /* Color of the remaining track */
+}
+
+.progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--thumb-color);
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.progress-bar::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--thumb-color);
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+}
+
+.progress-bar::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--progress-color) var(--progress-percentage), var(--track-color) var(--progress-percentage));
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.progress-bar::-moz-range-track {
+  background: linear-gradient(to right, var(--progress-color) var(--progress-percentage), var(--track-color) var(--progress-percentage));
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: none;
+}
