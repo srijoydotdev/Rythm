@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Song" ADD COLUMN     "likes" INTEGER DEFAULT 0,
+ADD COLUMN     "plays" INTEGER DEFAULT 0;
