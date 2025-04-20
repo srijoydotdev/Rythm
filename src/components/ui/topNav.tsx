@@ -28,9 +28,9 @@ const TopNav: FC = () => {
       <div className="h-16 flex items-center px-4 md:px-6 lg:px-8">
         <div className="flex flex-col justify-center">
           <h1 className="text-white/40 font-semibold text-lg md:text-xl">
-            Welcome, <span className="text-white font-bold text-lg">Frank</span>
+            Welcome, <span className="text-white font-bold text-lg">Srijoy</span>
           </h1>
-          <p className="text-gray-400 text-sm md:text-base">Wanna full spirit today?</p>
+          <p className="text-gray-400 text-sm md:text-base">Cut the distractions.</p>
         </div>
       </div>
     </div>

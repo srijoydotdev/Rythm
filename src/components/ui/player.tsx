@@ -358,7 +358,7 @@ export default function Player({
             backgroundRepeat: "no-repeat",
           }}
         >
-          {/* Blurred Background Overlay */}
+         
           <div
             className="absolute inset-0 backdrop-blur-md bg-black/50"
             aria-hidden="true"
@@ -479,7 +479,7 @@ export default function Player({
 
             {/* Bottom Section: Equalizer and Queue */}
             <div className="flex justify-between items-center">
-              <button className="text-sm md:text-lg lg:text-xl text-gray-400 hover:text-white">
+              <button className="text-sm bg-black/50 p-2 rounded-full backdrop-blur-3xl md:text-lg lg:text-xl text-white hover:text-white">
                 Equalizer Settings
               </button>
               <button

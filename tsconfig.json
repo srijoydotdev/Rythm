@@ -46,12 +46,12 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "prisma/generated/**/*"
+    "src/prisma/generated/**/*"
   ],
   "exclude": [
     "node_modules",
     ".next",
     "out",
-    "prisma/generated/**"
+    "src/prisma/generated/**"
   ]
 }

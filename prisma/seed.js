@@ -1,5 +1,9 @@
 // prisma/seed.js
-import { PrismaClient } from '../src/generated/prisma/index.js';
+import { PrismaClient } from '../generated/prisma/index.js'; // Matches the custom output path
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const prisma = new PrismaClient();
 
@@ -16,6 +20,8 @@ async function main() {
       genre: 'Pop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '2',
@@ -27,6 +33,8 @@ async function main() {
       genre: 'Pop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '3',
@@ -38,6 +46,8 @@ async function main() {
       genre: 'Rock',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '4',
@@ -49,6 +59,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '5',
@@ -60,6 +72,8 @@ async function main() {
       genre: 'Hip-Hop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '6',
@@ -71,6 +85,8 @@ async function main() {
       genre: 'Rock',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     // Your 19 songs (corrected)
     {
@@ -83,6 +99,8 @@ async function main() {
       genre: 'Unknown',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '8',
@@ -94,6 +112,8 @@ async function main() {
       genre: 'Electronic',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '9',
@@ -105,6 +125,8 @@ async function main() {
       genre: 'Hip-Hop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '10',
@@ -116,6 +138,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '11',
@@ -127,6 +151,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '12',
@@ -138,6 +164,8 @@ async function main() {
       genre: 'Pop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '13',
@@ -149,6 +177,8 @@ async function main() {
       genre: 'Hip-Hop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '14',
@@ -160,6 +190,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '15',
@@ -171,6 +203,8 @@ async function main() {
       genre: 'Punjabi Pop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '16',
@@ -182,6 +216,8 @@ async function main() {
       genre: 'Indie Rock',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '17',
@@ -193,6 +229,8 @@ async function main() {
       genre: 'Ghazal',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '18',
@@ -204,6 +242,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '19',
@@ -215,6 +255,8 @@ async function main() {
       genre: 'Bollywood',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '20',
@@ -226,6 +268,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '21',
@@ -234,9 +278,11 @@ async function main() {
       duration: '3:55',
       cover: '/images/rab-da-banda.jpg',
       filePath: '/songs/rab-da-banda.mp3',
-      genre: 'devotional bhajan',
+      genre: 'Devotional Bhajan',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '22',
@@ -248,6 +294,8 @@ async function main() {
       genre: 'Pop',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '23',
@@ -259,6 +307,8 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '24',
@@ -270,17 +320,21 @@ async function main() {
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
     {
       id: '25',
       title: 'When U High',
-      artist: 'Arctic Monkey',
+      artist: 'Arctic Monkeys',
       duration: '3:30',
       cover: '/images/Ar.jpeg',
       filePath: '/songs/when-u-high.mp3',
       genre: 'Indie',
       likes: 0,
       plays: 0,
+      liked: false,
+      artistId: null,
     },
   ];
 
@@ -296,7 +350,7 @@ async function main() {
 }
 
 main()
-  .catch(e => {
+  .catch((e) => {
     console.error('Seeding failed:', e);
     process.exit(1);
   })
