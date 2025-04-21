@@ -1,23 +1,29 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
+  previewFeatures = ["multiSchema"]
+
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+    schemas  = ["public", "auth"]
+
 }
 
 model User {
   id        String   @id @default(uuid()) // Changed to UUID
   email     String   @unique
+  userType  UserType @default(LISTENER) // Enum to differentiate user types
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   listenerProfile ListenerProfile?
   artistProfile   ArtistProfile?
   playlists       Playlist[]
 }
+
 
 model ListenerProfile {
   id         String   @id @default(uuid())

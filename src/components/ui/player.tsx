@@ -1,4 +1,3 @@
-// src/components/ui/player.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -15,10 +14,14 @@ import {
   Volume2,
   VolumeX,
   List,
-  Maximize2,
   ChevronDown,
   Speaker,
   X,
+  UserPlus,
+  Link,
+  DollarSign,
+  Plus,
+  Maximize2,
 } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
 import { Song } from "@/types";
@@ -61,13 +64,13 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
 }) => {
   return (
     <motion.div
-      className="fixed top-0 right-0 h-full w-80 md:w-96 bg-gray-900 text-white p-6 z-40 shadow-lg overflow-y-auto sm:w-full"
+      className="fixed top-0 right-0 h-[80%] scrollbar-hidden w-50 md:w-96 bg-black rounded-2xl m-4 mb-6 text-white p-6 z-40 shadow-lg overflow-y-auto sm:w-full"
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-15">
         <h2 className="text-lg font-bold">Select Audio Output</h2>
         <motion.button
           onClick={onClose}
@@ -83,8 +86,8 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
         {devices.map((device) => (
           <li key={device.key}>
             <motion.button
-              className={`w-full text-left p-3 rounded-md flex items-center space-x-2 ${
-                selectedDevice === device.deviceId ? "bg-gray-800" : "hover:bg-gray-800"
+              className={`w-full text-left cursor-pointer p-3 rounded-md flex items-center space-x-2 ${
+                selectedDevice === device.deviceId ? "bg-white/30" : "hover:bg-white/30"
               }`}
               onClick={() => onDeviceChange(device.deviceId)}
               whileHover={{ scale: 1.02 }}
@@ -95,7 +98,7 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
                 type="radio"
                 checked={selectedDevice === device.deviceId}
                 onChange={() => {}}
-                className="w-4 h-4 text-white bg-gray-600 border-gray-600 focus:ring-white"
+                className="w-4 h-4 cursor-pointer bg-gray-600 border-gray-600"
                 aria-hidden="true"
               />
               <span className="text-sm truncate">{device.label}</span>
@@ -304,11 +307,6 @@ export default function Player({
   };
 
   // Animation variants
-  const arrowVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 20 } },
-  };
-
   const dotVariants = {
     hidden: { opacity: 0, scale: 0 },
     visible: {
@@ -321,10 +319,9 @@ export default function Player({
   const heartVariants = {
     liked: {
       scale: [1, 1.3, 1],
-      rotate: [0, 10, -10, 0],
       transition: { duration: 0.3, ease: "easeInOut" },
     },
-    unliked: { scale: 1, rotate: 0 },
+    unliked: { scale: 1 },
   };
 
   // Swipe gesture handlers
@@ -341,425 +338,514 @@ export default function Player({
     delta: 50,
   });
 
+  // Handle click to toggle fullscreen on mobile
+  const handleMiniPlayerClick = (e: React.MouseEvent) => {
+    if (window.innerWidth < 640) {
+      // Prevent clicks on buttons from triggering fullscreen
+      if ((e.target as HTMLElement).closest("button")) return;
+      setIsFullScreen(true);
+    }
+  };
+
   return (
-    <div
-      className={`fixed bottom-0 left-0 right-0 bg-[#0E0E0E] text-white z-50 transition-all ${
-        isFullScreen ? "top-0 h-screen flex flex-col" : "p-4 shadow-lg"
-      }`}
-    >
-      {isFullScreen ? (
-        // Fullscreen Player for Desktop and Mobile
-        <div
-          className="relative flex flex-col h-full p-4 md:p-8 lg:p-12"
-          style={{
-            backgroundImage: `url(${song.cover || "/images/placeholder.jpg"})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        >
-         
+    <>
+      <style jsx global>{`
+        input[type="range"].progress-bar,
+        input[type="range"].volume-bar {
+          -webkit-appearance: none;
+          appearance: none;
+          background: transparent;
+          cursor: pointer;
+          width: 100%;
+        }
+
+        input[type="range"].progress-bar::-webkit-slider-runnable-track,
+        input[type="range"].volume-bar::-webkit-slider-runnable-track {
+          background: #4b4b4b;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        input[type="range"].progress-bar::-webkit-slider-thumb,
+        input[type="range"].volume-bar::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          margin-top: -4px;
+          background: #ffffff;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+        }
+
+        input[type="range"].progress-bar::-moz-range-track,
+        input[type="range"].volume-bar::-moz-range-track {
+          background: #4b4b4b;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        input[type="range"].progress-bar::-moz-range-thumb,
+        input[type="range"].volume-bar::-moz-range-thumb {
+          background: #ffffff;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          border: none;
+        }
+
+        input[type="range"].progress-bar::-moz-range-progress,
+        input[type="range"].volume-bar::-moz-range-progress {
+          background: #ffffff;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        input[type="range"].progress-bar::-webkit-progress-bar,
+        input[type="range"].volume-bar::-webkit-progress-bar {
+          background: #4b4b4b;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        input[type="range"].progress-bar::-webkit-progress-value,
+        input[type="range"].volume-bar::-webkit-progress-value {
+          background: #ffffff;
+          border-radius: 2px;
+        }
+      `}</style>
+
+      <div
+        className={`fixed bottom-0 rounded-2xl mb-4 mx-2 w-full max-w-3xl bg-[#0E0E0E] text-white z-50 transition-all ${
+          isFullScreen
+            ? "top-0 left-0 h-screen w-screen sm:m-0 sm:p-0 sm:rounded-none"
+            : "py-2 shadow-lg"
+        } ${isFullScreen ? "" : "sm:flex sm:justify-center sm:left-1/2 sm:transform sm:-translate-x-1/2"}`}
+        onClick={handleMiniPlayerClick}
+      >
+        {isFullScreen ? (
+          // Fullscreen Player
           <div
-            className="absolute inset-0 backdrop-blur-md bg-black/50"
-            aria-hidden="true"
-          ></div>
+            className="relative flex flex-col h-full p-4 sm:p-0"
+            style={{
+              backgroundImage: `url(${song.cover || "/images/placeholder.jpg"})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+          >
+            <div
+              className="absolute inset-0 backdrop-blur-md bg-black/50"
+              aria-hidden="true"
+            ></div>
 
-          {/* Content on top of blurred background */}
-          <div className="relative z-10 flex flex-col h-full">
-            {/* Top Section: Tabs */}
-            <div className="flex justify-center space-x-4 mb-6 md:mb-8 lg:mb-10">
-              {["Highlight", "Lyrics", "Video"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`text-sm md:text-base lg:text-lg font-medium uppercase ${
-                    activeTab === tab ? "text-yellow-500" : "text-gray-400"
-                  }`}
+            <div className="relative z-10 flex flex-col h-full px-4 sm:px-8 md:px-12 py-4 sm:py-6 md:py-8">
+              <div className="flex justify-center space-x-4 mb-4 sm:mb-6">
+                {["Highlight", "Lyrics", "Video"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`text-sm sm:text-base font-medium uppercase ${
+                      activeTab === tab ? "text-white" : "text-gray-400"
+                    } hover:text-gray-300`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 flex items-center justify-center">
+                <Image
+                  src={song.cover || "/images/placeholder.jpg"}
+                  alt={`Cover art for ${song.title} by ${song.artist}`}
+                  width={400}
+                  height={300}
+                  className="w-3/4 sm:w-2/5 md:w-1/3 max-w-[600px] h-auto rounded-lg object-cover aspect-[4/3]"
+                  onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
+                  priority
+                />
+              </div>
+
+              <div className="text-center mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-semibold truncate">
+                  {song.title}
+                </h3>
+                <p className="text-sm sm:text-base md:text-lg text-gray-400 truncate">
+                  {song.artist}
+                </p>
+                <div className="flex justify-center space-x-2 mt-2">
+                  <motion.button
+                    onClick={() => console.log("Follow artist")}
+                    className="p-1 text-white hover:text-gray-300"
+                    whileTap={{ scale: 0.9 }}
+                    aria-label="Follow artist"
+                  >
+                    <UserPlus className="w-5 h-5 fill-current" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => console.log("Go to artist page")}
+                    className="p-1 text-white hover:text-gray-300"
+                    whileTap={{ scale: 0.9 }}
+                    aria-label="Go to artist page"
+                  >
+                    <Link className="w-5 h-5 fill-current" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => console.log("Tip artist")}
+                    className="p-1 text-white hover:text-gray-300"
+                    whileTap={{ scale: 0.9 }}
+                    aria-label="Tip artist"
+                  >
+                    <DollarSign className="w-5 h-5 fill-current" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => console.log("Add to playlist")}
+                    className="p-1 text-white hover:text-gray-300"
+                    whileTap={{ scale: 0.9 }}
+                    aria-label="Add to playlist"
+                  >
+                    <Plus className="w-5 h-5 fill-current" />
+                  </motion.button>
+                </div>
+              </div>
+
+              <div className="w-full flex items-center space-x-2 mb-4 sm:mb-6">
+                <span className="text-xs sm:text-sm text-gray-400">
+                  {formatTime(currentTime)}
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="w-full h-1 rounded-full cursor-pointer progress-bar"
+                  aria-label="Seek song position"
+                />
+                <span className="text-xs sm:text-sm text-gray-400">
+                  -{formatTime(duration - currentTime)}
+                </span>
+              </div>
+
+              <div className="flex justify-center items-center space-x-4 sm:space-x-6 mb-4 sm:mb-6">
+                <motion.button
+                  onClick={toggleShuffle}
+                  className={`p-1.5 ${shuffle ? "text-white" : "text-gray-400"} hover:text-gray-300`}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
                 >
-                  {tab}
-                </button>
-              ))}
-            </div>
+                  <Shuffle className="w-5 h-5 fill-current" />
+                </motion.button>
+                <motion.button
+                  onClick={playPrevious}
+                  className="p-1.5 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Previous song"
+                >
+                  <SkipBack className="w-6 h-6 fill-current" strokeWidth={2} />
+                </motion.button>
+                <motion.button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="p-2 rounded-full bg-white text-black"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-6 h-6 fill-current" strokeWidth={2} />
+                  ) : (
+                    <Play className="w-6 h-6 fill-current" strokeWidth={2} />
+                  )}
+                </motion.button>
+                <motion.button
+                  onClick={playNext}
+                  className="p-1.5 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Next song"
+                >
+                  <SkipForward className="w-6 h-6 fill-current" strokeWidth={2} />
+                </motion.button>
+                <motion.button
+                  onClick={toggleRepeat}
+                  className={`p-1.5 ${repeat !== "none" ? "text-white" : "text-gray-400"} hover:text-gray-300`}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={`Repeat: ${repeat}`}
+                >
+                  <Repeat className="w-5 h-5 fill-current" />
+                </motion.button>
+              </div>
 
-            {/* Album Cover */}
-            <div className="flex-1 flex items-center justify-center">
+              <div className="flex justify-between items-center">
+                <button className="text-sm bg-black/50 p-2 rounded-full backdrop-blur-3xl text-white hover:text-gray-300">
+                  Equalizer Settings
+                </button>
+                <button
+                  onClick={() => setShowQueue(!showQueue)}
+                  className="text-sm text-gray-400 hover:text-gray-300"
+                >
+                  Queue List
+                </button>
+              </div>
+
+              <motion.button
+                onClick={() => setIsFullScreen(false)}
+                className="absolute top-4 left-4 p-2 rounded-full text-white hover:text-gray-300"
+                whileTap={{ scale: 0.9 }}
+                aria-label="Exit full screen"
+              >
+                <ChevronDown className="w-6 h-6" />
+              </motion.button>
+            </div>
+          </div>
+        ) : (
+          // Default Mini Player (Compact)
+          <div
+            className="flex items-center justify-between w-full max-w-7xl mx-auto px-3 py-2"
+            {...swipeHandlers}
+          >
+            {/* Song Info */}
+            <div className="flex items-center space-x-2 w-1/3">
               <Image
                 src={song.cover || "/images/placeholder.jpg"}
                 alt={`Cover art for ${song.title} by ${song.artist}`}
-                width={300}
-                height={300}
-                className="w-3/4 md:w-1/2 lg:w-1/3 h-auto rounded-lg object-cover"
+                width={56}
+                height={48}
+                className="w-14 h-12 rounded-md object-cover"
                 onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
                 priority
               />
-            </div>
-
-            {/* Song Info */}
-            <div className="text-center mb-4 md:mb-6 lg:mb-8">
-              <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold truncate">
-                {song.title}
-              </h3>
-              <p className="text-sm md:text-lg lg:text-xl text-gray-400 truncate">
-                {song.artist}
-              </p>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full flex items-center space-x-2 mb-4 md:mb-6 lg:mb-8">
-              <span className="text-xs md:text-sm lg:text-base text-gray-400">
-                {formatTime(currentTime)}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={duration}
-                value={currentTime}
-                onChange={handleSeek}
-                className="w-full h-1 md:h-2 lg:h-3 rounded-full cursor-pointer appearance-none bg-gray-600"
-                style={{
-                  background: `linear-gradient(to right, white ${(
-                    (currentTime / duration) *
-                    100
-                  )}%, gray 0%)`,
-                }}
-                aria-label="Seek song position"
-              />
-              <span className="text-xs md:text-sm lg:text-base text-gray-400">
-                -{formatTime(duration - currentTime)}
-              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold truncate max-w-[100px] sm:max-w-[130px]">
+                  {song.title}
+                </h3>
+                <p className="text-xs text-gray-400 truncate">{song.artist}</p>
+              </div>
+              <div className="flex items-center space-x-1">
+                <motion.button
+                  onClick={() => toggleLike(song.id)}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={song.liked ? "Unlike song" : "Like song"}
+                >
+                  <motion.div
+                    variants={heartVariants}
+                    animate={song.liked ? "liked" : "unliked"}
+                    initial={song.liked ? "liked" : "unliked"}
+                  >
+                    <Heart
+                      className={`w-4 h-4 fill-current ${song.liked ? "text-red-500" : "text-white"}`}
+                      strokeWidth={2}
+                    />
+                  </motion.div>
+                </motion.button>
+                <motion.button
+                  onClick={() => console.log("Follow artist")}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Follow artist"
+                >
+                  <UserPlus className="w-4 h-4 fill-current" />
+                </motion.button>
+                <motion.button
+                  onClick={() => console.log("Go to artist page")}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Go to artist page"
+                >
+                  <Link className="w-4 h-4 fill-current" />
+                </motion.button>
+                <motion.button
+                  onClick={() => console.log("Tip artist")}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Tip artist"
+                >
+                  <DollarSign className="w-4 h-4 fill-current" />
+                </motion.button>
+                <motion.button
+                  onClick={() => console.log("Add to playlist")}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Add to playlist"
+                >
+                  <Plus className="w-4 h-4 fill-current" />
+                </motion.button>
+              </div>
             </div>
 
             {/* Playback Controls */}
-            <div className="flex justify-center items-center space-x-6 md:space-x-8 lg:space-x-10 mb-4 md:mb-6 lg:mb-8">
-              <motion.button
-                onClick={toggleShuffle}
-                className={`p-2 md:p-3 lg:p-4 rounded-full ${shuffle ? "text-white" : "text-gray-400"}`}
-                whileTap={{ scale: 0.9 }}
-                aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
-              >
-                <Shuffle className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10" />
-              </motion.button>
-              <motion.button
-                onClick={playPrevious}
-                className="p-2 md:p-3 lg:p-4 rounded-full text-white"
-                whileTap={{ scale: 0.9 }}
-                aria-label="Previous song"
-              >
-                <SkipBack className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" strokeWidth={2} />
-              </motion.button>
-              <motion.button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="p-4 md:p-5 lg:p-6 rounded-full bg-white text-black"
-                whileTap={{ scale: 0.9 }}
-                aria-label={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? (
-                  <Pause className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" strokeWidth={2} />
-                ) : (
-                  <Play className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" strokeWidth={2} />
-                )}
-              </motion.button>
-              <motion.button
-                onClick={playNext}
-                className="p-2 md:p-3 lg:p-4 rounded-full text-white"
-                whileTap={{ scale: 0.9 }}
-                aria-label="Next song"
-              >
-                <SkipForward className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" strokeWidth={2} />
-              </motion.button>
-              <motion.button
-                onClick={toggleRepeat}
-                className={`p-2 md:p-3 lg:p-4 rounded-full ${repeat !== "none" ? "text-white" : "text-gray-400"}`}
-                whileTap={{ scale: 0.9 }}
-                aria-label={`Repeat: ${repeat}`}
-              >
-                <Repeat className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10" />
-              </motion.button>
-            </div>
-
-            {/* Bottom Section: Equalizer and Queue */}
-            <div className="flex justify-between items-center">
-              <button className="text-sm bg-black/50 p-2 rounded-full backdrop-blur-3xl md:text-lg lg:text-xl text-white hover:text-white">
-                Equalizer Settings
-              </button>
-              <button
-                onClick={() => setShowQueue(!showQueue)}
-                className="text-sm md:text-lg lg:text-xl text-gray-400 hover:text-white"
-              >
-                Queue List
-              </button>
-            </div>
-
-            {/* Exit Fullscreen Button */}
-            <motion.button
-              onClick={() => setIsFullScreen(false)}
-              className="absolute top-4 left-4 p-2 md:p-3 lg:p-4 rounded-full text-white"
-              whileTap={{ scale: 0.9 }}
-              aria-label="Exit full screen"
-            >
-              <ChevronDown className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10" />
-            </motion.button>
-          </div>
-        </div>
-      ) : (
-        // Default Mini Player
-        <div
-          className="flex items-center justify-between max-w-7xl mx-auto flex-col md:flex-row gap-4 p-4"
-          {...swipeHandlers}
-        >
-          {/* Song Info */}
-          <div className="flex items-center space-x-4 w-full md:w-1/3">
-            <motion.div
-              className="relative group"
-              animate={isPlaying ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-              transition={{ repeat: isPlaying ? Infinity : 0, duration: 2, ease: "easeInOut" }}
-            >
-              <motion.div
-                className="absolute inset-0 border-2 border-white/80 rounded-md -z-10 translate-x-1 translate-y-1"
-                initial={{ scale: 0.95, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                aria-hidden="true"
-              />
-              <Image
-                src={song.cover || "/images/placeholder.jpg"}
-                alt={`Cover art for ${song.title} by ${song.artist}`}
-                width={84}
-                height={84}
-                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-md object-cover"
-                onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
-                priority
-              />
-              <motion.div
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 bg-black/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100"
-                variants={arrowVariants}
-                initial="hidden"
-                animate="hidden"
-                whileHover="visible"
-                aria-hidden="true"
-              >
-                <ChevronDown className="w-5 h-5 text-white sm:w-6 sm:h-6" />
-              </motion.div>
-            </motion.div>
-            <div>
-              <h3 className="text-sm font-semibold truncate max-w-[200px]">{song.title}</h3>
-              <p className="text-xs text-gray-400 truncate">{song.artist}</p>
-            </div>
-            <motion.button
-              onClick={() => toggleLike(song.id)}
-              className="p-2 rounded-full hover:bg-gray-800"
-              whileTap={{ scale: 1.2 }}
-              whileHover={{ scale: 1.1 }}
-              aria-label={song.liked ? "Unlike song" : "Like song"}
-            >
-              <motion.div
-                variants={heartVariants}
-                animate={song.liked ? "liked" : "unliked"}
-                initial={song.liked ? "liked" : "unliked"}
-              >
-                <Heart
-                  className={`w-5 h-5 ${song.liked ? "fill-red-500 text-red-500" : "text-white"}`}
-                  strokeWidth={2}
-                />
-              </motion.div>
-            </motion.button>
-          </div>
-
-          {/* Playback Controls */}
-          <div className="flex flex-col items-center w-full md:w-1/3">
-            <div className="flex items-center space-x-4 mb-2">
-              <motion.button
-                onClick={toggleShuffle}
-                className={`p-2 rounded-full text-gray-400 hover:text-white ${
-                  shuffle ? "text-rose-500" : ""
-                } relative`}
-                whileTap={{ scale: 0.9 }}
-                aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
-              >
-                <motion.div
-                  animate={
-                    shuffle
-                      ? {
-                          scale: [1, 1.2, 1],
-                          rotate: [0, 15, -15, 0],
-                        }
-                      : { scale: 1, rotate: 0 }
-                  }
-                  transition={{
-                    duration: 0.4,
-                    ease: "easeInOut",
-                    repeat: shuffle ? 1 : 0,
-                  }}
+            <div className="flex flex-col items-center w-1/3">
+              <div className="flex items-center space-x-2">
+                <motion.button
+                  onClick={toggleShuffle}
+                  className={`p-1 ${shuffle ? "text-white" : "text-gray-400"} hover:text-gray-300 relative`}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
                 >
-                  <Shuffle className="w-5 h-5" />
-                </motion.div>
-                {shuffle && (
-                  <motion.div
-                    className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full"
-                    variants={dotVariants}
-                    initial="hidden"
-                    animate="visible"
-                    aria-hidden="true"
-                  />
-                )}
-              </motion.button>
-              <motion.button
-                onClick={playPrevious}
-                className="p-2.5 rounded-full text-white hover:bg-gray-800"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Previous song"
-              >
-                <SkipBack className="w-5 h-5" strokeWidth={2} />
-              </motion.button>
-              <motion.button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="p-3.5 rounded-full bg-white text-black hover:bg-gray-200"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? (
-                  <Pause className="w-6 h-6" strokeWidth={2} />
-                ) : (
-                  <Play className="w-6 h-6" strokeWidth={2} />
-                )}
-              </motion.button>
-              <motion.button
-                onClick={playNext}
-                className="p-2.5 rounded-full text-white hover:bg-gray-800"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Next song"
-              >
-                <SkipForward className="w-5 h-5" strokeWidth={2} />
-              </motion.button>
-              <motion.button
-                onClick={toggleRepeat}
-                className={`p-2 rounded-full ${
-                  repeat !== "none" ? "text-purple-500" : "text-white"
-                } hover:bg-gray-800`}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label={`Repeat: ${repeat}`}
-              >
-                <Repeat className={`w-5 h-5 ${repeat === "one" ? "text-purple-500" : ""}`} />
-                {repeat === "one" && <span className="text-xs absolute">1</span>}
-              </motion.button>
+                  <Shuffle className="w-4 h-4 fill-current" />
+                  {shuffle && (
+                    <motion.div
+                      className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full"
+                      variants={dotVariants}
+                      initial="hidden"
+                      animate="visible"
+                      aria-hidden="true"
+                    />
+                  )}
+                </motion.button>
+                <motion.button
+                  onClick={playPrevious}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Previous song"
+                >
+                  <SkipBack className="w-5 h-5 fill-current" strokeWidth={2} />
+                </motion.button>
+                <motion.button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="p-2 rounded-full bg-white text-black"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-5 h-5 fill-current" strokeWidth={2} />
+                  ) : (
+                    <Play className="w-5 h-5 fill-current" strokeWidth={2} />
+                  )}
+                </motion.button>
+                <motion.button
+                  onClick={playNext}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Next song"
+                >
+                  <SkipForward className="w-5 h-5 fill-current" strokeWidth={2} />
+                </motion.button>
+                <motion.button
+                  onClick={toggleRepeat}
+                  className={`p-1 ${repeat !== "none" ? "text-white" : "text-gray-400"} hover:text-gray-300 relative`}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={`Repeat: ${repeat}`}
+                >
+                  <Repeat className="w-4 h-4 fill-current" />
+                  {repeat === "one" && (
+                    <span className="text-[10px] absolute bottom-0 right-0">1</span>
+                  )}
+                </motion.button>
+              </div>
+              <div className="w-full flex items-center space-x-1 mt-1">
+                <span className="text-xs text-gray-400">{formatTime(currentTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="w-full h-1 rounded-full cursor-pointer progress-bar"
+                  aria-label="Seek song position"
+                />
+                <span className="text-xs text-gray-400">{formatTime(duration)}</span>
+              </div>
             </div>
-            <div className="w-full flex items-center space-x-2">
-              <span className="text-xs text-gray-400">{formatTime(currentTime)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration}
-                value={currentTime}
-                onChange={handleSeek}
-                className="w-full h-1 rounded-full cursor-pointer appearance-none progress-bar"
-                aria-label="Seek song position"
-              />
-              <span className="text-xs text-gray-400">{formatTime(duration)}</span>
+
+            {/* Additional Controls (Desktop Only) */}
+            <div className="hidden sm:flex items-center space-x-2 w-1/3 justify-end">
+              <div className="flex items-center space-x-1">
+                <motion.button
+                  onClick={toggleMute}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-5 h-5 fill-current" />
+                  ) : (
+                    <Volume2 className="w-5 h-5 fill-current" />
+                  )}
+                </motion.button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="w-16 h-1 rounded-full cursor-pointer volume-bar"
+                />
+              </div>
+              {isDeviceSelectionSupported && audioDevices.length > 1 && (
+                <motion.button
+                  onClick={() => setShowDevicePanel(true)}
+                  className="p-1 text-white hover:text-gray-300"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Open device selection panel"
+                >
+                  <Speaker className="w-5 h-5 fill-current" />
+                </motion.button>
+              )}
+              <motion.button
+                onClick={() => setIsFullScreen(true)}
+                className="p-1 text-white hover:text-gray-300"
+                whileTap={{ scale: 0.9 }}
+                aria-label="Enter full screen"
+              >
+                <Maximize2 className="w-5 h-5 fill-current" />
+              </motion.button>
             </div>
           </div>
+        )}
 
-          {/* Additional Controls */}
-          <div className="flex items-center space-x-4 w-full md:w-1/3 justify-end">
-            <div className="flex items-center space-x-2">
-              <motion.button
-                onClick={toggleMute}
-                className="p-2 rounded-full hover:bg-gray-800"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label={isMuted ? "Unmute" : "Mute"}
-              >
-                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-              </motion.button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={volume}
-                onChange={handleVolumeChange}
-                className="w-20 h-1 rounded-full cursor-pointer appearance-none progress-bar"
-              />
-            </div>
-            {isDeviceSelectionSupported && audioDevices.length > 1 && (
-              <motion.button
-                onClick={() => setShowDevicePanel(true)}
-                className="p-2 rounded-full hover:bg-gray-800"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Open device selection panel"
-              >
-                <Speaker className="w-5 h-5 text-gray-400" />
-              </motion.button>
+        {/* Queue Panel */}
+        {showQueue && (
+          <motion.div
+            className="absolute bottom-16 left-0 right-0 bg-gray-800 p-4 rounded-t-lg max-h-64 overflow-y-auto"
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+          >
+            <h4 className="text-lg font-bold mb-2">Queue</h4>
+            {queue.length === 0 ? (
+              <p className="text-gray-400">No songs in queue.</p>
+            ) : (
+              <ul>
+                {queue.map((qSong, index) => (
+                  <li key={qSong.id} className="flex justify-between items-center py-2">
+                    <span>
+                      {qSong.title} - {qSong.artist}
+                    </span>
+                    <button
+                      onClick={() => removeFromQueue(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-            <motion.button
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              className="p-2 rounded-full hover:bg-gray-800"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              aria-label={isFullScreen ? "Exit full screen" : "Enter full screen"}
-            >
-              <Maximize2 className="w-5 h-5" />
-            </motion.button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
 
-      {/* Queue Panel */}
-      {showQueue && (
-        <motion.div
-          className="absolute bottom-16 left-0 right-0 bg-gray-800 p-4 rounded-t-lg max-h-64 overflow-y-auto"
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          exit={{ y: 100 }}
-        >
-          <h4 className="text-lg font-bold mb-2">Queue</h4>
-          {queue.length === 0 ? (
-            <p className="text-gray-400">No songs in queue.</p>
-          ) : (
-            <ul>
-              {queue.map((qSong, index) => (
-                <li key={qSong.id} className="flex justify-between items-center py-2">
-                  <span>
-                    {qSong.title} - {qSong.artist}
-                  </span>
-                  <button
-                    onClick={() => removeFromQueue(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </motion.div>
-      )}
+        {/* Device Selection Panel */}
+        {showDevicePanel && (
+          <DeviceSelectionPanel
+            devices={audioDevices}
+            selectedDevice={selectedDevice}
+            onDeviceChange={handleDeviceChange}
+            onClose={() => setShowDevicePanel(false)}
+          />
+        )}
 
-      {/* Device Selection Panel */}
-      {showDevicePanel && (
-        <DeviceSelectionPanel
-          devices={audioDevices}
-          selectedDevice={selectedDevice}
-          onDeviceChange={handleDeviceChange}
-          onClose={() => setShowDevicePanel(false)}
+        <audio
+          ref={audioRef}
+          src={song.filePath}
+          onEnded={playNext}
+          onError={(e) => {
+            console.error("Audio playback error:", e);
+            toast.error("Failed to load song.");
+            setIsPlaying(false);
+          }}
+          preload="auto"
         />
-      )}
-
-      <audio
-        ref={audioRef}
-        src={song.filePath}
-        onEnded={playNext}
-        onError={(e) => {
-          console.error("Audio playback error:", e);
-          toast.error("Failed to load song.");
-          setIsPlaying(false);
-        }}
-        preload="auto"
-      />
-    </div>
+      </div>
+    </>
   );
 }

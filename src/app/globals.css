@@ -159,3 +159,36 @@
   cursor: pointer;
   border: none;
 }
+/* Hide the default radio button */
+input[type="radio"] {
+  appearance: none; /* Removes default styling */
+  -webkit-appearance: none; /* For Safari */
+  -moz-appearance: none; /* For Firefox */
+  width: 16px; /* Matches your w-4 */
+  height: 16px; /* Matches your h-4 */
+  background-color: #4b5563; /* Matches bg-gray-600 */
+  border: 2px solid #4b5563; /* Matches border-gray-600 */
+  border-radius: 50%; /* Makes it circular */
+  outline: none; /* Removes focus outline */
+  cursor: pointer;
+}
+
+/* Style for the checked state */
+input[type="radio"]:checked {
+  background-color: #4b5563; /* Background when checked */
+  border: 2px solid #4b5563; /* Border when checked */
+  position: relative;
+}
+
+/* Optional: Add a custom "dot" or fill for the checked state */
+input[type="radio"]:checked::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px; /* Size of the inner dot */
+  height: 8px;
+  background-color: white; /* Color of the inner dot */
+  border-radius: 50%;
+}

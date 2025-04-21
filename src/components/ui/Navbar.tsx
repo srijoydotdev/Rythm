@@ -19,7 +19,7 @@ export default function Navbar() {
     hover: { rotate: 360, transition: { duration: 0.5 } },
    
   };
-  const isMusicPage = pathname =='/music';
+  const isMusicPage = pathname =='/song';
   const isAudioPage = pathname == '/audio';
   const isShowPage = pathname == '/show';
 
@@ -45,9 +45,9 @@ export default function Navbar() {
       <img src='/logo.svg' className='w-10 h-10'/>
         <img src="/home.svg" alt="Home" className="w-6 h-6" />
         <div className='flex items-center space-x-1'>
-          <Link href={'/music'}>
-        <button  className={`text-white bg-[#1D1D1D] px-3 py-1 cursor-pointer rounded-full border-1 border-white hover:text-black ${
-              isMusicPage ? 'bg-white text-black font-' : 'hover:bg-white t'
+          <Link href={'/song'}>
+        <button  className={`text-white bg-[#1D1D1D] px-3 py-1 cursor-pointer rounded-full border-1 border-white${
+              isMusicPage ? 'bg-white text-black font-bold' : 'hover:bg-white t'
             }`}>
           Music
         </button>
