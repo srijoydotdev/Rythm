@@ -10,46 +10,109 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid()) // Changed to UUID
   email     String   @unique
-  name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  listenerProfile ListenerProfile?
+  artistProfile   ArtistProfile?
+  playlists       Playlist[]
+}
 
-  playlists Playlist[] 
+model ListenerProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id") // Changed to String
+  username   String   @unique
+  fullName   String?  @map("full_name")
+  aboutMe    String?  @map("about_me")
+  profilePic String?  @map("profile_pic")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  friends    Friend[] @relation("Friends")
+  friendOf   Friend[] @relation("FriendOf")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("listener_profiles")
+}
+
+model ArtistProfile {
+  id             String        @id @default(uuid())
+  userId         String        @unique @map("user_id") // Changed to String
+  stageName      String        @unique @map("stage_name")
+  bio            String?
+  coverImage     String?       @map("cover_image")
+  profilePic     String?       @map("profile_pic")
+  genreTags      String[]      @map("genre_tags")
+  instrumentTags String[]      @map("instrument_tags")
+  socialLinks    Json?         @map("social_links")
+  isVerified     Boolean       @default(false) @map("is_verified")
+  verificationDetails Json?     @map("verification_details")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  songs          Song[]
+  artistTags     TagAssignment[]
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("artist_profiles")
 }
 
 model Song {
-  id        String   @id @default(uuid()) // UUID for string IDs
+  id        String   @id @default(uuid())
   title     String
   artist    String
-  duration  String // e.g., "3:20"
-  cover     String // e.g., "/images/blinding-lights.jpg"
-  filePath  String // e.g., "/songs/blinding-lights.mp3"
+  duration  String
+  cover     String
+  filePath  String   @map("file_path")
   genre     String
   createdAt DateTime @default(now())
-
-  playlists Playlist[] @relation("PlaylistSongs") 
-  artistRef Artist?    @relation(fields: [artistId], references: [id])
-  artistId  Int?
-  liked    Boolean @default(false)
-  likes     Int?      @default(0)//likes
-  plays     Int?      @default(0)//Plays
+  playlists Playlist[] @relation("PlaylistSongs")
+  artistRef ArtistProfile? @relation(fields: [artistId], references: [id])
+  artistId  String?   @map("artist_id")
+  liked     Boolean   @default(false)
+  likes     Int?      @default(0)
+  plays     Int?      @default(0)
+  @@map("songs")
 }
 
 model Playlist {
   id        Int      @id @default(autoincrement())
   name      String
-  userId    Int
+  userId    String   @map("user_id") // Changed to String
   user      User     @relation(fields: [userId], references: [id])
-  songs     Song[]   @relation("PlaylistSongs") // 👈 Many-to-many with explicit name
+  songs     Song[]   @relation("PlaylistSongs")
   createdAt DateTime @default(now())
+  @@map("playlists")
 }
 
-model Artist {
-  id    Int    @id @default(autoincrement())
-  name  String
-  cover String
+model Friend {
+  id        String   @id @default(uuid())
+  listenerProfileId String @map("listener_profile_id")
+  friendProfileId String @map("friend_profile_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  listenerProfile ListenerProfile @relation("Friends", fields: [listenerProfileId], references: [id])
+  friendProfile   ListenerProfile @relation("FriendOf", fields: [friendProfileId], references: [id])
+  @@unique([listenerProfileId, friendProfileId])
+  @@map("friends")
+}
 
-  songs Song[] // 👈 Back relation from Song
+model ArtistTag {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  createdAt   DateTime      @default(now()) @map("created_at")
+  assignments TagAssignment[]
+  @@map("artist_tags")
+}
+
+model TagAssignment {
+  id            String        @id @default(uuid())
+  artistProfileId String      @map("artist_profile_id")
+  tagId         String      @map("tag_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  artistProfile   ArtistProfile @relation(fields: [artistProfileId], references: [id])
+  tag           ArtistTag     @relation(fields: [tagId], references: [id])
+  @@unique([artistProfileId, tagId])
+  @@map("tag_assignments")
+}
+
+enum UserType {
+  LISTENER
+  ARTIST
 }
