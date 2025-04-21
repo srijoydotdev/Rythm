@@ -1,5 +1,6 @@
 // src/app/song/page.tsx
 "use client";
+
 import Link from "next/link";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Navbar from "@/components/ui/Navbar";
@@ -11,14 +12,13 @@ import BottomNav from "@/components/ui/navmob";
 import { Song, Artist } from "@/types";
 import toast from "react-hot-toast";
 import TopNav from "@/components/ui/topNav";
-// Define interfaces for clarity and type safety
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
   error?: string;
 }
 
-// Main component
 export default function Music() {
   const [activeGenre, setActiveGenre] = useState<string>("All");
   const [songs, setSongs] = useState<Song[]>([]);
@@ -28,7 +28,7 @@ export default function Music() {
   const [shuffle, setShuffle] = useState<boolean>(false);
   const [repeat, setRepeat] = useState<"none" | "all" | "one">("none");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Added for UX
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const genres = useMemo(
     () => [
@@ -61,7 +61,6 @@ export default function Music() {
     []
   );
 
-  // Fetch songs on mount
   useEffect(() => {
     async function fetchSongs() {
       try {
@@ -87,26 +86,26 @@ export default function Music() {
     fetchSongs();
   }, []);
 
-  // Memoize filtered songs to prevent unnecessary re-computation
   const filteredSongs = useMemo(
     () =>
       activeGenre === "All" ? songs : songs.filter((song) => song.genre === activeGenre),
     [activeGenre, songs]
   );
 
-  // Handle artist follow/unfollow
-  const handleFollow = useCallback((artistId: string) => {
-    setFollowedArtists((prev) => {
-      const isFollowed = prev.some((artist) => artist.id === artistId);
-      if (isFollowed) {
-        return prev.filter((artist) => artist.id !== artistId);
-      }
-      const artistToFollow = suggestedArtists.find((artist) => artist.id === artistId);
-      return artistToFollow ? [...prev, { ...artistToFollow, isFollowing: true }] : prev;
-    });
-  }, [suggestedArtists]);
+  const handleFollow = useCallback(
+    (artistId: string) => {
+      setFollowedArtists((prev) => {
+        const isFollowed = prev.some((artist) => artist.id === artistId);
+        if (isFollowed) {
+          return prev.filter((artist) => artist.id !== artistId);
+        }
+        const artistToFollow = suggestedArtists.find((artist) => artist.id === artistId);
+        return artistToFollow ? [...prev, { ...artistToFollow, isFollowing: true }] : prev;
+      });
+    },
+    [suggestedArtists]
+  );
 
-  // Play a song and update play count
   const playSong = useCallback(
     async (song: Song | null) => {
       if (!song) {
@@ -142,7 +141,6 @@ export default function Music() {
     []
   );
 
-  // Play next song in queue
   const playNext = useCallback(() => {
     if (!currentSong || queue.length === 0) {
       setIsPlaying(false);
@@ -182,7 +180,6 @@ export default function Music() {
     playSong(nextSong);
   }, [currentSong, queue, repeat, shuffle, playSong]);
 
-  // Play previous song in queue
   const playPrevious = useCallback(() => {
     if (!currentSong || queue.length === 0) {
       return;
@@ -197,15 +194,12 @@ export default function Music() {
     playSong(queue[prevIndex]);
   }, [currentSong, queue, playSong]);
 
-  // Toggle shuffle mode
   const toggleShuffle = useCallback(() => setShuffle((prev) => !prev), []);
 
-  // Toggle repeat mode
   const toggleRepeat = useCallback(() => {
     setRepeat((prev) => (prev === "none" ? "all" : prev === "all" ? "one" : "none"));
   }, []);
 
-  // Toggle like status for a song
   const toggleLike = useCallback(
     async (songId: string, retries = 2) => {
       const song = songs.find((s) => s.id === songId);
@@ -263,13 +257,9 @@ export default function Music() {
       <div className="fixed top-0 left-0 right-0 z-10 hidden md:block">
         <Navbar />
       </div>
-      <div className="fixed top-0 left-0 right-0 z-10  md:hidden">
-        <TopNav/>
+      <div className="fixed top-0 left-0 right-0 z-10 md:hidden">
+        <TopNav />
       </div>
-
-
-      {/* Mobile header */}
-     
 
       {/* Bottom navigation for mobile */}
       <div className="fixed bottom-0 left-0 right-0 md:hidden z-50">
@@ -277,7 +267,7 @@ export default function Music() {
       </div>
 
       <div className="flex">
-        {/* Sidebar for desktop */}
+        {/* Sidebar for desktop, desktop */}
         <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] z-10 hidden md:block">
           <LibrarySidebar />
         </div>
@@ -291,23 +281,20 @@ export default function Music() {
             <div className="mb-4 p-4 bg-red-500 text-white rounded">{error}</div>
           )}
 
-          {/* mobile layout */}
+          {/* Mobile layout */}
           <div className="md:hidden mt-3">
             <div>
-              <h2 className="font-semibold text-xl text-white">Artist Recomendation</h2>
-
+              <h2 className="font-semibold text-xl text-white">Artist Recommendation</h2>
               <div className="flex overflow-x-auto space-x-4 pb-2">
-              {suggestedArtists.map((artist) => (
-                  <ArtistCard  key={artist.id} artist={artist} />
+                {suggestedArtists.map((artist) => (
+                  <ArtistCard key={artist.id} artist={artist} />
                 ))}
               </div>
             </div>
-         
-
-
           </div>
+
           {/* Genre filters */}
-          <div className="flex items-center space-x-3 mb-6 overflow-x-auto ">
+          <div className="flex items-center space-x-3 mb-6 overflow-x-auto">
             {genres.map((genre) => (
               <button
                 key={genre}
@@ -360,12 +347,15 @@ export default function Music() {
               ))}
             </div>
           </div>
-          
-          {/* Suggested Artists - Desktop (Grid Layout) */}
+
+          {/* Suggested Artists - Desktop */}
           <div className="hidden md:block">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-2xl font-bold">Suggested Artists</h2>
-              <Link href="/artists" className="text-yellow-500 text-sm font-medium hover:underline">
+              <Link
+                href="/artists"
+                className="text-yellow-500 text-sm font-medium hover:underline"
+              >
                 See More
               </Link>
             </div>

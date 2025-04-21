@@ -2,9 +2,11 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../app/lib/supabase";
+import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -12,59 +14,101 @@ export default function Signup() {
   const [userType, setUserType] = useState("LISTENER");
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
-  const [profilePic, setProfilePic] = useState("");
   const [aboutMe, setAboutMe] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
-    // Validate inputs
-    if (!fullName || !age || !profilePic || !aboutMe) {
-      setError("All fields are required.");
+    if (!email || !password || !fullName || !age || !aboutMe) {
+      toast.error("All fields are required.");
+      setIsLoading(false);
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          userType,
-          fullName,
-          age: parseInt(age),
-          profilePic,
-          aboutMe,
+    try {
+      // Sign up the user
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            userType,
+            fullName,
+            age: parseInt(age),
+            aboutMe,
+            profilePic: "/profile-pic.jpg", // Use default profile picture from public folder
+            profileSetup: true,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setError(error.message);
-    } else if (data.user) {
-      // Update profile in Prisma
+      if (signUpError) {
+        throw new Error(signUpError.message);
+      }
+
+      if (!data.user) {
+        throw new Error("Please check your email for confirmation.");
+      }
+
+      // Debug session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Session after signup:", session);
+
+      // Sync with Prisma
       await fetch("/api/auth/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: data.user }),
+        body: JSON.stringify({
+          user: {
+            ...data.user,
+            user_metadata: {
+              userType,
+              fullName,
+              age: parseInt(age),
+              aboutMe,
+              profilePic: "/profile-pic.jpg", // Use default profile picture
+              profileSetup: true,
+            },
+          },
+        }),
       });
-      router.push("/song"); // Redirect to song page
-    } else {
-      setError("Please check your email for confirmation.");
+
+      toast.success("Account created successfully!");
+      router.push("/song");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
-      <div className="bg-[#1D1D1D] rounded-lg p-8 max-w-md w-full shadow-lg">
+      <Toaster position="top-right" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-[#1D1D1D] rounded-lg p-8 max-w-md w-full shadow-lg"
+      >
         <img src="/logo.svg" alt="Logo" className="w-16 h-16 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-white text-center mb-6">Sign Up</h1>
+        <h1 className="text-3xl font-bold text-white text-center mb-6">
+          Create Your Account
+        </h1>
         {error && (
-          <div className="mb-4 p-3 bg-red-500/20 text-red-400 rounded">
+          <motion.div
+            initial={{ x: 0 }}
+            animate={{ x: [-10, 10, -10, 10, 0] }}
+            transition={{ duration: 0.3 }}
+            className="mb-4 p-3 bg-red-500/20 text-red-400 rounded"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
@@ -97,7 +141,7 @@ export default function Signup() {
           </div>
           <div>
             <label htmlFor="userType" className="text-white text-sm font-medium">
-              User Type
+              I am a
             </label>
             <select
               id="userType"
@@ -138,20 +182,6 @@ export default function Signup() {
             />
           </div>
           <div>
-            <label htmlFor="profilePic" className="text-white text-sm font-medium">
-              Profile Picture URL
-            </label>
-            <input
-              type="url"
-              id="profilePic"
-              value={profilePic}
-              onChange={(e) => setProfilePic(e.target.value)}
-              placeholder="Enter profile picture URL"
-              className="w-full mt-1 p-3 bg-[#2A2A2A] text-white rounded-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
-              required
-            />
-          </div>
-          <div>
             <label htmlFor="aboutMe" className="text-white text-sm font-medium">
               About Me
             </label>
@@ -167,9 +197,40 @@ export default function Signup() {
           </div>
           <button
             type="submit"
-            className="w-full bg-white text-black font-semibold py-3 rounded-md hover:bg-gray-200 transition"
+            disabled={isLoading}
+            className={`w-full py-3 rounded-md font-semibold transition flex items-center justify-center ${
+              isLoading
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-white text-black hover:bg-gray-200"
+            }`}
           >
-            Sign Up
+            {isLoading ? (
+              <>
+                <svg
+                  className="animate-spin h-5 w-5 mr-2 text-gray-300"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  ></path>
+                </svg>
+                Creating Account...
+              </>
+            ) : (
+              "Sign Up"
+            )}
           </button>
         </form>
         <p className="text-white text-center mt-4">
@@ -178,7 +239,7 @@ export default function Signup() {
             Sign In
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
