@@ -4,115 +4,167 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(uuid()) // Changed to UUID
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  listenerProfile ListenerProfile?
-  artistProfile   ArtistProfile?
-  playlists       Playlist[]
+  id            String          @id @default(uuid())
+  email         String          @unique
+  role          UserRole        @default(LISTENER)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  profile       Profile?        // Unified profile
+  playlists     Playlist[]
+  likes         Like[]
+  plays         Play[]
+  followers     Follow[]        @relation("Follower")
+  following     Follow[]        @relation("Following")
+  friends       Friend[]        @relation("UserFriends")
+  friendOf      Friend[]        @relation("FriendOf")
+  artistProfile ArtistProfile?  // Artist-specific details
+  @@map("users")
 }
 
-model ListenerProfile {
-  id         String   @id @default(uuid())
-  userId     String   @unique @map("user_id") // Changed to String
-  username   String   @unique
-  fullName   String?  @map("full_name")
-  aboutMe    String?  @map("about_me")
-  profilePic String?  @map("profile_pic")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  friends    Friend[] @relation("Friends")
-  friendOf   Friend[] @relation("FriendOf")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@map("listener_profiles")
+enum UserRole {
+  LISTENER
+  ARTIST
+}
+
+model Profile {
+  id            String          @id @default(uuid())
+  userId        String          @unique @map("user_id")
+  uniqueTag     String          @unique @map("unique_tag") // e.g., @droolz
+  displayName   String          @map("display_name")
+  bio           String?         @default("") @map("bio")
+  profilePic    String?         @map("profile_pic") // URL from Supabase storage
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("profiles")
 }
 
 model ArtistProfile {
-  id             String        @id @default(uuid())
-  userId         String        @unique @map("user_id") // Changed to String
-  stageName      String        @unique @map("stage_name")
-  bio            String?
-  coverImage     String?       @map("cover_image")
-  profilePic     String?       @map("profile_pic")
-  genreTags      String[]      @map("genre_tags")
-  instrumentTags String[]      @map("instrument_tags")
-  socialLinks    Json?         @map("social_links")
-  isVerified     Boolean       @default(false) @map("is_verified")
-  verificationDetails Json?     @map("verification_details")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  songs          Song[]
-  artistTags     TagAssignment[]
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String            @id @default(uuid())
+  userId            String            @unique @map("user_id")
+  coverImage        String?           @map("cover_image")
+  genreTags         String[]          @map("genre_tags")
+  socialLinks       Json?             @map("social_links") // { "twitter": "url", "instagram": "url" }
+  isVerified        Boolean           @default(false) @map("is_verified")
+  verificationDoc   String?           @map("verification_doc") // URL to doc
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  portfolioLinks    String[]          @map("portfolio_links")
+  artisticVision    String?           @map("artistic_vision")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  songs             Song[]
+  artistTags        TagAssignment[]
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("artist_profiles")
 }
 
-model Song {
-  id        String   @id @default(uuid())
-  title     String
-  artist    String
-  duration  String
-  cover     String
-  filePath  String   @map("file_path")
-  genre     String
-  createdAt DateTime @default(now())
-  playlists Playlist[] @relation("PlaylistSongs")
-  artistRef ArtistProfile? @relation(fields: [artistId], references: [id])
-  artistId  String?   @map("artist_id")
-  liked     Boolean   @default(false)
-  likes     Int?      @default(0)
-  plays     Int?      @default(0)
-  @@map("songs")
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
+model Song {
+  id            String          @id @default(uuid())
+  title         String
+  artistId      String          @map("artist_id")
+  artist        ArtistProfile   @relation(fields: [artistId], references: [id])
+  duration      Int             // Seconds
+  cover         String?         // Optional cover image URL
+  coverVideo    String?         @map("cover_video") // Optional cover video URL
+  lyrics        String?         @map("lyrics") // Optional lyrics text
+  filePath      String          @map("file_path") // URL from Supabase storage
+  genre         String
+  createdAt     DateTime        @default(now())
+  playlists     PlaylistSong[]
+  likes         Like[]
+  plays         Play[]
+  @@map("songs")
+}
 model Playlist {
-  id        Int      @id @default(autoincrement())
-  name      String
-  userId    String   @map("user_id") // Changed to String
-  user      User     @relation(fields: [userId], references: [id])
-  songs     Song[]   @relation("PlaylistSongs")
-  createdAt DateTime @default(now())
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?         @default("") // Added for Spotify-like feel
+  userId        String          @map("user_id")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs         PlaylistSong[]
+  isPublic      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   @@map("playlists")
 }
 
+model PlaylistSong {
+  playlistId    Int     @map("playlist_Id")
+  songId        String
+  playlist      Playlist        @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song          Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  addedAt       DateTime        @default(now())
+  @@id([playlistId, songId])
+  @@map("playlist_songs")
+}
+
+model Like {
+  userId        String          @map("user_id")
+  songId        String          @map("song_id")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song          Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  @@id([userId, songId])
+  @@map("likes")
+}
+
+model Play {
+  userId        String          @map("user_id")
+  songId        String          @map("song_id")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song          Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  @@id([userId, songId, createdAt])
+  @@map("plays")
+}
+
+model Follow {
+  followerId    String          @map("follower_id")
+  followingId   String          @map("following_id")
+  follower      User            @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User            @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
 model Friend {
-  id        String   @id @default(uuid())
-  listenerProfileId String @map("listener_profile_id")
-  friendProfileId String @map("friend_profile_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  listenerProfile ListenerProfile @relation("Friends", fields: [listenerProfileId], references: [id])
-  friendProfile   ListenerProfile @relation("FriendOf", fields: [friendProfileId], references: [id])
-  @@unique([listenerProfileId, friendProfileId])
+  userId        String          @map("user_id")
+  friendId      String          @map("friend_id")
+  user          User            @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend        User            @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  @@id([userId, friendId])
   @@map("friends")
 }
 
 model ArtistTag {
-  id          String        @id @default(uuid())
-  name        String        @unique
-  createdAt   DateTime      @default(now()) @map("created_at")
-  assignments TagAssignment[]
+  id            String          @id @default(uuid())
+  name          String          @unique
+  createdAt     DateTime        @default(now()) @map("created_at")
+  assignments   TagAssignment[]
   @@map("artist_tags")
 }
 
 model TagAssignment {
-  id            String        @id @default(uuid())
-  artistProfileId String      @map("artist_profile_id")
-  tagId         String      @map("tag_id")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  artistProfile   ArtistProfile @relation(fields: [artistProfileId], references: [id])
-  tag           ArtistTag     @relation(fields: [tagId], references: [id])
-  @@unique([artistProfileId, tagId])
+  artistProfileId   String          @map("artist_profile_id")
+  tagId             String          @map("tag_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  artistProfile     ArtistProfile   @relation(fields: [artistProfileId], references: [id], onDelete: Cascade)
+  tag               ArtistTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([artistProfileId, tagId])
   @@map("tag_assignments")
-}
-
-enum UserType {
-  LISTENER
-  ARTIST
 }
