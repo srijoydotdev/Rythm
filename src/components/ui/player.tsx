@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
   Pause,
@@ -13,18 +13,16 @@ import {
   Heart,
   Volume2,
   VolumeX,
-  List,
   ChevronDown,
   Speaker,
   X,
   UserPlus,
-  Link,
   DollarSign,
   Plus,
   Maximize2,
 } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
-import { Song } from "@/types";
+import { Song, Playlist } from "@/app/types";
 import toast from "react-hot-toast";
 import { useSwipeable } from "react-swipeable";
 
@@ -41,6 +39,8 @@ interface PlayerProps {
   queue: Song[];
   setQueue: Dispatch<SetStateAction<Song[]>>;
   toggleLike: (songId: string) => void;
+  playlists: Playlist[];
+  addToPlaylist?: (playlistId: number, songId: string) => Promise<void>;
 }
 
 interface AudioDevice {
@@ -64,13 +64,13 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
 }) => {
   return (
     <motion.div
-      className="fixed top-0 right-0 h-[80%] scrollbar-hidden w-50 md:w-96 bg-black rounded-2xl m-4 mb-6 text-white p-6 z-40 shadow-lg overflow-y-auto sm:w-full"
+      className="fixed top-0 right-0 h-[80%] w-64 md:w-96 bg-black rounded-2xl m-4 mb-6 text-white p-6 z-50 shadow-lg overflow-y-auto"
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      <div className="flex justify-between items-center mb-15">
+      <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-bold">Select Audio Output</h2>
         <motion.button
           onClick={onClose}
@@ -86,8 +86,8 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
         {devices.map((device) => (
           <li key={device.key}>
             <motion.button
-              className={`w-full text-left cursor-pointer p-3 rounded-md flex items-center space-x-2 ${
-                selectedDevice === device.deviceId ? "bg-white/30" : "hover:bg-white/30"
+              className={`w-full text-left p-3 rounded-md flex items-center space-x-2 ${
+                selectedDevice === device.deviceId ? "bg-white/20" : "hover:bg-white/10"
               }`}
               onClick={() => onDeviceChange(device.deviceId)}
               whileHover={{ scale: 1.02 }}
@@ -98,7 +98,7 @@ const DeviceSelectionPanel: React.FC<DeviceSelectionPanelProps> = ({
                 type="radio"
                 checked={selectedDevice === device.deviceId}
                 onChange={() => {}}
-                className="w-4 h-4 cursor-pointer bg-gray-600 border-gray-600"
+                className="w-4 h-4 cursor-pointer"
                 aria-hidden="true"
               />
               <span className="text-sm truncate">{device.label}</span>
@@ -123,20 +123,39 @@ export default function Player({
   queue,
   setQueue,
   toggleLike,
+  playlists,
+  addToPlaylist,
 }: PlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [showQueue, setShowQueue] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("default");
   const [isDeviceSelectionSupported, setIsDeviceSelectionSupported] = useState(false);
   const [showDevicePanel, setShowDevicePanel] = useState(false);
-  const [activeTab, setActiveTab] = useState("Lyrics");
+  const [activeTab, setActiveTab] = useState("Video");
+  const [videoError, setVideoError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+
+  // Handle adding to playlist
+  const handleAddToPlaylist = async (playlistId: number) => {
+    if (!addToPlaylist) return;
+    try {
+      await addToPlaylist(playlistId, song.id);
+      setShowPlaylistMenu(false);
+      toast.success(`Added to playlist!`);
+    } catch (error) {
+      console.error("Error adding to playlist:", error);
+      toast.error("Failed to add to playlist.");
+    }
+  };
 
   // Check for setSinkId support
   useEffect(() => {
@@ -149,11 +168,6 @@ export default function Player({
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const permission = await navigator.permissions.query({ name: "microphone" });
-        if (permission.state === "prompt" || permission.state === "denied") {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-        }
-
         const devices = await navigator.mediaDevices.enumerateDevices();
         const outputDevices = devices
           .filter((device) => device.kind === "audiooutput")
@@ -173,7 +187,7 @@ export default function Player({
         }
       } catch (err) {
         console.error("Error enumerating devices:", err);
-        toast.error("Failed to access audio devices. Using default output.");
+        toast.error("Failed to access audio devices.");
         setAudioDevices([{ deviceId: "default", label: "Default", key: "default" }]);
       }
     };
@@ -189,7 +203,11 @@ export default function Player({
     if (audioRef.current) {
       try {
         await audioRef.current.setSinkId(deviceId);
-        toast.success(`Audio output set to ${audioDevices.find((d) => d.deviceId === deviceId)?.label || "device"}`);
+        toast.success(
+          `Audio output set to ${
+            audioDevices.find((d) => d.deviceId === deviceId)?.label || "device"
+          }`
+        );
         setShowDevicePanel(false);
       } catch (err) {
         console.error("Error setting audio output:", err);
@@ -199,14 +217,26 @@ export default function Player({
     }
   };
 
+  // Preload next video
+  useEffect(() => {
+    if (queue.length > 0 && activeTab === "Video") {
+      const nextSong = queue[0];
+      if (nextSong.coverVideo) {
+        const preloadVideo = document.createElement("video");
+        preloadVideo.src = nextSong.coverVideo;
+        preloadVideo.preload = "auto";
+      }
+    }
+  }, [queue, activeTab, song]);
+
   // Initialize audio
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
-      audioRef.current.playbackRate = playbackSpeed;
+      audioRef.current.muted = isMuted;
       if (isPlaying) {
         audioRef.current.play().catch((err) => {
-          console.error("Playback error:", err);
+          console.error("Audio playback error:", err);
           toast.error("Failed to play song.");
           setIsPlaying(false);
         });
@@ -214,24 +244,64 @@ export default function Player({
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, song, volume, playbackSpeed, setIsPlaying]);
+  }, [isPlaying, song, volume, isMuted, setIsPlaying]);
 
-  // Update progress
+  // Sync video playback with audio
+  useEffect(() => {
+    if (videoRef.current && activeTab === "Video" && !videoError) {
+      videoRef.current.currentTime = audioRef.current?.currentTime || 0;
+      if (isPlaying) {
+        videoRef.current.play().catch((err) => {
+          console.error("Video playback error:", err);
+          toast.error("Failed to play video.");
+          setVideoError(true);
+        });
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isPlaying, activeTab, videoError, song]);
+
+  // Update progress and handle buffering
   useEffect(() => {
     const audio = audioRef.current;
+    const video = videoRef.current;
     if (!audio) return;
 
-    const updateProgress = () => setCurrentTime(audio.currentTime);
+    const updateProgress = () => {
+      setCurrentTime(audio.currentTime);
+      setProgressPercentage((audio.currentTime / duration) * 100);
+      if (video && activeTab === "Video" && !videoError) {
+        const diff = Math.abs(video.currentTime - audio.currentTime);
+        if (diff > 0.1) {
+          video.currentTime = audio.currentTime;
+        }
+      }
+    };
     const setDurationOnce = () => setDuration(audio.duration);
+    const handleWaiting = () => setIsBuffering(true);
+    const handlePlaying = () => setIsBuffering(false);
 
     audio.addEventListener("timeupdate", updateProgress);
     audio.addEventListener("loadedmetadata", setDurationOnce);
+    audio.addEventListener("waiting", handleWaiting);
+    audio.addEventListener("playing", handlePlaying);
+    if (video && activeTab === "Video") {
+      video.addEventListener("waiting", handleWaiting);
+      video.addEventListener("playing", handlePlaying);
+    }
 
     return () => {
       audio.removeEventListener("timeupdate", updateProgress);
       audio.removeEventListener("loadedmetadata", setDurationOnce);
+      audio.removeEventListener("waiting", handleWaiting);
+      audio.removeEventListener("playing", handlePlaying);
+      if (video) {
+        video.removeEventListener("waiting", handleWaiting);
+        video.removeEventListener("playing", handlePlaying);
+      }
     };
-  }, []);
+  }, [activeTab, duration, videoError]);
 
   // Persist volume
   useEffect(() => {
@@ -250,13 +320,11 @@ export default function Player({
         playPrevious();
       } else if (e.code === "KeyM") {
         setIsMuted((prev) => !prev);
-      } else if (e.code === "KeyS") {
-        toggleShuffle();
       }
     };
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [setIsPlaying, playNext, playPrevious, toggleShuffle]);
+  }, [setIsPlaying, playNext, playPrevious]);
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -269,8 +337,12 @@ export default function Player({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = Number(e.target.value);
     setCurrentTime(time);
+    setProgressPercentage((time / duration) * 100);
     if (audioRef.current) {
       audioRef.current.currentTime = time;
+    }
+    if (videoRef.current && activeTab === "Video") {
+      videoRef.current.currentTime = time;
     }
   };
 
@@ -292,59 +364,61 @@ export default function Player({
     }
   };
 
-  // Playback speed
-  const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
-  const handleSpeedChange = (speed: number) => {
-    setPlaybackSpeed(speed);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = speed;
-    }
+  // Double-tap to like
+  const handleDoubleTap = () => {
+    toggleLike(song.id);
+    toast.success(song.liked ? "Unliked" : "Liked");
   };
 
-  // Queue management
-  const removeFromQueue = (index: number) => {
-    setQueue((prev) => prev.filter((_, i) => i !== index));
+  // Toggle controls visibility
+  const handleVideoTap = () => {
+    setShowControls((prev) => !prev);
   };
 
-  // Animation variants
-  const dotVariants = {
-    hidden: { opacity: 0, scale: 0 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { type: "spring", stiffness: 300, damping: 20 },
-    },
-  };
-
-  const heartVariants = {
-    liked: {
-      scale: [1, 1.3, 1],
-      transition: { duration: 0.3, ease: "easeInOut" },
-    },
-    unliked: { scale: 1 },
-  };
-
-  // Swipe gesture handlers
+  // Swipe handlers for Reels-like navigation
   const swipeHandlers = useSwipeable({
+    onSwipedUp: () => {
+      if (activeTab === "Video" && isFullScreen) {
+        playNext();
+        setVideoError(false);
+        navigator.vibrate?.(50);
+      }
+    },
+    onSwipedDown: () => {
+      if (activeTab === "Video" && isFullScreen) {
+        playPrevious();
+        setVideoError(false);
+        navigator.vibrate?.(50);
+      }
+    },
     onSwipedLeft: () => {
-      playNext();
-      navigator.vibrate?.(50);
+      if (!isFullScreen) {
+        playNext();
+        setVideoError(false);
+        navigator.vibrate?.(50);
+      }
     },
     onSwipedRight: () => {
-      playPrevious();
-      navigator.vibrate?.(50);
+      if (!isFullScreen) {
+        playPrevious();
+        setVideoError(false);
+        navigator.vibrate?.(50);
+      }
     },
     trackMouse: false,
-    delta: 50,
+    delta: 30,
   });
 
-  // Handle click to toggle fullscreen on mobile
-  const handleMiniPlayerClick = (e: React.MouseEvent) => {
-    if (window.innerWidth < 640) {
-      // Prevent clicks on buttons from triggering fullscreen
-      if ((e.target as HTMLElement).closest("button")) return;
-      setIsFullScreen(true);
-    }
+  // Animation variants
+  const controlsVariants = {
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 20, transition: { duration: 0.3, ease: "easeIn" } },
+  };
+
+  const videoVariants = {
+    initial: { opacity: 0, y: 100 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+    exit: { opacity: 0, y: -100, transition: { duration: 0.4, ease: "easeIn" } },
   };
 
   return (
@@ -361,7 +435,7 @@ export default function Player({
 
         input[type="range"].progress-bar::-webkit-slider-runnable-track,
         input[type="range"].volume-bar::-webkit-slider-runnable-track {
-          background: #4b4b4b;
+          background: rgba(255, 255, 255, 0.3);
           height: 4px;
           border-radius: 2px;
         }
@@ -375,11 +449,12 @@ export default function Player({
           height: 12px;
           width: 12px;
           border-radius: 50%;
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
         }
 
         input[type="range"].progress-bar::-moz-range-track,
         input[type="range"].volume-bar::-moz-range-track {
-          background: #4b4b4b;
+          background: rgba(255, 255, 255, 0.3);
           height: 4px;
           border-radius: 2px;
         }
@@ -402,7 +477,7 @@ export default function Player({
 
         input[type="range"].progress-bar::-webkit-progress-bar,
         input[type="range"].volume-bar::-webkit-progress-bar {
-          background: #4b4b4b;
+          background: rgba(255, 255, 255, 0.3);
           height: 4px;
           border-radius: 2px;
         }
@@ -412,303 +487,501 @@ export default function Player({
           background: #ffffff;
           border-radius: 2px;
         }
+
+        .video-player {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 8px;
+          will-change: transform, opacity;
+        }
+
+        .video-player-fullscreen {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          object-fit: cover;
+          z-index: 0;
+          will-change: transform, opacity;
+        }
+
+        .controls-overlay {
+          background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent 50%);
+          z-index: 10;
+          padding: 16px;
+        }
+
+        .progress-ring {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          width: 40px;
+          height: 40px;
+        }
+
+        .progress-ring__circle {
+          stroke: #ffffff;
+          stroke-width: 3;
+          fill: transparent;
+          transform: rotate(-90deg);
+          transform-origin: 50% 50%;
+        }
+
+        .progress-ring__background {
+          stroke: rgba(255, 255, 255, 0.3);
+        }
+
+        .loading-spinner {
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid #ffffff;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+          .controls-overlay {
+            padding: 12px;
+          }
+        }
       `}</style>
 
       <div
         className={`fixed bottom-0 rounded-2xl mb-4 mx-2 w-full max-w-3xl bg-[#0E0E0E] text-white z-50 transition-all ${
           isFullScreen
-            ? "top-0 left-0 h-screen w-screen sm:m-0 sm:p-0 sm:rounded-none"
+            ? "top-0 left-0 h-screen w-screen m-0 p-0 rounded-none"
             : "py-2 shadow-lg"
         } ${isFullScreen ? "" : "sm:flex sm:justify-center sm:left-1/2 sm:transform sm:-translate-x-1/2"}`}
-        onClick={handleMiniPlayerClick}
+        {...swipeHandlers}
       >
         {isFullScreen ? (
           // Fullscreen Player
-          <div
-            className="relative flex flex-col h-full p-4 sm:p-0"
-            style={{
-              backgroundImage: `url(${song.cover || "/images/placeholder.jpg"})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            }}
-          >
-            <div
-              className="absolute inset-0 backdrop-blur-md bg-black/50"
-              aria-hidden="true"
-            ></div>
-
-            <div className="relative z-10 flex flex-col h-full px-4 sm:px-8 md:px-12 py-4 sm:py-6 md:py-8">
-              <div className="flex justify-center space-x-4 mb-4 sm:mb-6">
-                {["Highlight", "Lyrics", "Video"].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`text-sm sm:text-base font-medium uppercase ${
-                      activeTab === tab ? "text-white" : "text-gray-400"
-                    } hover:text-gray-300`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 flex items-center justify-center">
-                <Image
-                  src={song.cover || "/images/placeholder.jpg"}
-                  alt={`Cover art for ${song.title} by ${song.artist}`}
-                  width={400}
-                  height={300}
-                  className="w-3/4 sm:w-2/5 md:w-1/3 max-w-[600px] h-auto rounded-lg object-cover aspect-[4/3]"
-                  onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
-                  priority
-                />
-              </div>
-
-              <div className="text-center mb-4 sm:mb-6">
-                <h3 className="text-lg sm:text-xl md:text-2xl font-semibold truncate">
-                  {song.title}
-                </h3>
-                <p className="text-sm sm:text-base md:text-lg text-gray-400 truncate">
-                  {song.artist}
-                </p>
-                <div className="flex justify-center space-x-2 mt-2">
-                  <motion.button
-                    onClick={() => console.log("Follow artist")}
-                    className="p-1 text-white hover:text-gray-300"
-                    whileTap={{ scale: 0.9 }}
-                    aria-label="Follow artist"
-                  >
-                    <UserPlus className="w-5 h-5 fill-current" />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => console.log("Go to artist page")}
-                    className="p-1 text-white hover:text-gray-300"
-                    whileTap={{ scale: 0.9 }}
-                    aria-label="Go to artist page"
-                  >
-                    <Link className="w-5 h-5 fill-current" />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => console.log("Tip artist")}
-                    className="p-1 text-white hover:text-gray-300"
-                    whileTap={{ scale: 0.9 }}
-                    aria-label="Tip artist"
-                  >
-                    <DollarSign className="w-5 h-5 fill-current" />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => console.log("Add to playlist")}
-                    className="p-1 text-white hover:text-gray-300"
-                    whileTap={{ scale: 0.9 }}
-                    aria-label="Add to playlist"
-                  >
-                    <Plus className="w-5 h-5 fill-current" />
-                  </motion.button>
-                </div>
-              </div>
-
-              <div className="w-full flex items-center space-x-2 mb-4 sm:mb-6">
-                <span className="text-xs sm:text-sm text-gray-400">
-                  {formatTime(currentTime)}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={duration}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  className="w-full h-1 rounded-full cursor-pointer progress-bar"
-                  aria-label="Seek song position"
-                />
-                <span className="text-xs sm:text-sm text-gray-400">
-                  -{formatTime(duration - currentTime)}
-                </span>
-              </div>
-
-              <div className="flex justify-center items-center space-x-4 sm:space-x-6 mb-4 sm:mb-6">
-                <motion.button
-                  onClick={toggleShuffle}
-                  className={`p-1.5 ${shuffle ? "text-white" : "text-gray-400"} hover:text-gray-300`}
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+          <div className="relative flex flex-col h-full">
+            <AnimatePresence mode="wait">
+              {activeTab === "Video" && song.coverVideo && !videoError ? (
+                <motion.div
+                  key={song.id}
+                  variants={videoVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="absolute inset-0"
                 >
-                  <Shuffle className="w-5 h-5 fill-current" />
-                </motion.button>
-                <motion.button
-                  onClick={playPrevious}
-                  className="p-1.5 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Previous song"
-                >
-                  <SkipBack className="w-6 h-6 fill-current" strokeWidth={2} />
-                </motion.button>
-                <motion.button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-2 rounded-full bg-white text-black"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                >
-                  {isPlaying ? (
-                    <Pause className="w-6 h-6 fill-current" strokeWidth={2} />
-                  ) : (
-                    <Play className="w-6 h-6 fill-current" strokeWidth={2} />
+                  <video
+                    ref={videoRef}
+                    src={song.coverVideo}
+                    className="video-player-fullscreen"
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    onError={() => {
+                      toast.error("Failed to load video.");
+                      setVideoError(true);
+                    }}
+                    onClick={handleVideoTap}
+                    onDoubleClick={handleDoubleTap}
+                  />
+                  {isBuffering && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="loading-spinner"></div>
+                    </div>
                   )}
-                </motion.button>
-                <motion.button
-                  onClick={playNext}
-                  className="p-1.5 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Next song"
+                  <svg className="progress-ring" viewBox="0 0 40 40">
+                    <circle
+                      className="progress-ring__background"
+                      cx="20"
+                      cy="20"
+                      r="18"
+                      strokeWidth="3"
+                    />
+                    <circle
+                      className="progress-ring__circle"
+                      cx="20"
+                      cy="20"
+                      r="18"
+                      strokeDasharray="113"
+                      strokeDashoffset={113 - (progressPercentage / 100) * 113}
+                    />
+                  </svg>
+                  <motion.div
+                    className="absolute bottom-0 left-0 right-0 controls-overlay"
+                    variants={controlsVariants}
+                    animate={showControls ? "visible" : "hidden"}
+                  >
+                    <div className="flex justify-center space-x-4 mb-4">
+                      {["Highlight", "Lyrics", "Video"].map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`text-sm font-medium uppercase ${
+                            activeTab === tab ? "text-white" : "text-gray-300"
+                          } hover:text-white transition-colors`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-center mb-4">
+                      <h3 className="text-xl font-semibold truncate">{song.title}</h3>
+                      <p className="text-base text-gray-300 truncate">{song.artist}</p>
+                    </div>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <span className="text-sm text-gray-300">{formatTime(currentTime)}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={duration}
+                        value={currentTime}
+                        onChange={handleSeek}
+                        className="w-full h-1 rounded-full cursor-pointer progress-bar"
+                        aria-label="Seek song position"
+                      />
+                      <span className="text-sm text-gray-300">
+                        -{formatTime(duration - currentTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-center items-center space-x-6 mb-4">
+                      <motion.button
+                        onClick={toggleShuffle}
+                        className={`p-2 ${shuffle ? "text-white" : "text-gray-300"} hover:text-white`}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+                      >
+                        <Shuffle className="w-6 h-6" />
+                      </motion.button>
+                      <motion.button
+                        onClick={playPrevious}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Previous song"
+                      >
+                        <SkipBack className="w-7 h-7" strokeWidth={2} />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="p-4 rounded-full bg-white text-black shadow-lg"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={isPlaying ? "Pause" : "Play"}
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-7 h-7" strokeWidth={2} />
+                        ) : (
+                          <Play className="w-7 h-7" strokeWidth={2} />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        onClick={playNext}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Next song"
+                      >
+                        <SkipForward className="w-7 h-7" strokeWidth={2} />
+                      </motion.button>
+                      <motion.button
+                        onClick={toggleRepeat}
+                        className={`p-2 ${repeat !== "none" ? "text-white" : "text-gray-300"} hover:text-white`}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={`Repeat: ${repeat}`}
+                      >
+                        <Repeat className="w-6 h-6" />
+                      </motion.button>
+                    </div>
+                    <div className="flex justify-center space-x-3 relative">
+                      <motion.button
+                        onClick={() => toggleLike(song.id)}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={song.liked ? "Unlike song" : "Like song"}
+                      >
+                        <Heart
+                          className={`w-6 h-6 ${song.liked ? "text-red-500 fill-current" : "text-white"}`}
+                          strokeWidth={2}
+                        />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => console.log("Follow artist")}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Follow artist"
+                      >
+                        <UserPlus className="w-6 h-6" />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => console.log("Tip artist")}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Tip artist"
+                      >
+                        <DollarSign className="w-6 h-6" />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Add to playlist"
+                      >
+                        <Plus className="w-6 h-6" />
+                      </motion.button>
+                      {showPlaylistMenu && (
+                        <motion.div
+                          className="absolute bottom-12 right-0 bg-[#2A2A2A] rounded-lg shadow-lg z-20"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                        >
+                          <ul className="py-2">
+                            {playlists.length === 0 ? (
+                              <li className="px-4 py-2 text-sm text-gray-400">
+                                No playlists available
+                              </li>
+                            ) : (
+                              playlists.map((playlist) => (
+                                <li
+                                  key={playlist.id}
+                                  className="px-4 py-2 text-sm hover:bg-[#3A3A3A] cursor-pointer"
+                                  onClick={() => handleAddToPlaylist(playlist.id)}
+                                >
+                                  Add to {playlist.name}
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={song.id}
+                  variants={videoVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="relative flex flex-col h-full"
+                  style={{
+                    backgroundImage: `url(${song.cover || "/images/placeholder.jpg"})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
                 >
-                  <SkipForward className="w-6 h-6 fill-current" strokeWidth={2} />
-                </motion.button>
-                <motion.button
-                  onClick={toggleRepeat}
-                  className={`p-1.5 ${repeat !== "none" ? "text-white" : "text-gray-400"} hover:text-gray-300`}
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={`Repeat: ${repeat}`}
-                >
-                  <Repeat className="w-5 h-5 fill-current" />
-                </motion.button>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <button className="text-sm bg-black/50 p-2 rounded-full backdrop-blur-3xl text-white hover:text-gray-300">
-                  Equalizer Settings
-                </button>
-                <button
-                  onClick={() => setShowQueue(!showQueue)}
-                  className="text-sm text-gray-400 hover:text-gray-300"
-                >
-                  Queue List
-                </button>
-              </div>
-
-              <motion.button
-                onClick={() => setIsFullScreen(false)}
-                className="absolute top-4 left-4 p-2 rounded-full text-white hover:text-gray-300"
-                whileTap={{ scale: 0.9 }}
-                aria-label="Exit full screen"
-              >
-                <ChevronDown className="w-6 h-6" />
-              </motion.button>
-            </div>
+                  <div
+                    className="absolute inset-0 backdrop-blur-md bg-black/50"
+                    aria-hidden="true"
+                  ></div>
+                  <div className="relative z-10 flex flex-col h-full px-4 py-6">
+                    <div className="flex justify-center space-x-4 mb-6">
+                      {["Highlight", "Lyrics", "Video"].map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`text-sm font-medium uppercase ${
+                            activeTab === tab ? "text-white" : "text-gray-300"
+                          } hover:text-white transition-colors`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                      <Image
+                        src={song.cover || "/images/placeholder.jpg"}
+                        alt={`Cover art for ${song.title} by ${song.artist}`}
+                        width={400}
+                        height={300}
+                        className="w-3/4 max-w-[600px] h-auto rounded-lg object-cover aspect-[4/3] shadow-lg"
+                        onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
+                        priority
+                      />
+                    </div>
+                    <div className="text-center mb-6">
+                      <h3 className="text-xl font-semibold truncate">{song.title}</h3>
+                      <p className="text-base text-gray-300 truncate">{song.artist}</p>
+                      <div className="flex justify-center space-x-3 mt-2">
+                        <motion.button
+                          onClick={() => toggleLike(song.id)}
+                          className="p-2 text-white hover:text-gray-300"
+                          whileTap={{ scale: 0.9 }}
+                          aria-label={song.liked ? "Unlike song" : "Like song"}
+                        >
+                          <Heart
+                            className={`w-6 h-6 ${song.liked ? "text-red-500 fill-current" : "text-white"}`}
+                            strokeWidth={2}
+                          />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => console.log("Follow artist")}
+                          className="p-2 text-white hover:text-gray-300"
+                          whileTap={{ scale: 0.9 }}
+                          aria-label="Follow artist"
+                        >
+                          <UserPlus className="w-6 h-6" />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => console.log("Tip artist")}
+                          className="p-2 text-white hover:text-gray-300"
+                          whileTap={{ scale: 0.9 }}
+                          aria-label="Tip artist"
+                        >
+                          <DollarSign className="w-6 h-6" />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}
+                          className="p-2 text-white hover:text-gray-300"
+                          whileTap={{ scale: 0.9 }}
+                          aria-label="Add to playlist"
+                        >
+                          <Plus className="w-6 h-6" />
+                        </motion.button>
+                        {showPlaylistMenu && (
+                          <motion.div
+                            className="absolute bottom-12 right-0 bg-[#2A2A2A] rounded-lg shadow-lg z-20"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                          >
+                            <ul className="py-2">
+                              {playlists.length === 0 ? (
+                                <li className="px-4 py-2 text-sm text-gray-400">
+                                  No playlists available
+                                </li>
+                              ) : (
+                                playlists.map((playlist) => (
+                                  <li
+                                    key={playlist.id}
+                                    className="px-4 py-2 text-sm hover:bg-[#3A3A3A] cursor-pointer"
+                                    onClick={() => handleAddToPlaylist(playlist.id)}
+                                  >
+                                    Add to {playlist.name}
+                                  </li>
+                                ))
+                              )}
+                            </ul>
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 mb-6">
+                      <span className="text-sm text-gray-300">{formatTime(currentTime)}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={duration}
+                        value={currentTime}
+                        onChange={handleSeek}
+                        className="w-full h-1 rounded-full cursor-pointer progress-bar"
+                        aria-label="Seek song position"
+                      />
+                      <span className="text-sm text-gray-300">
+                        -{formatTime(duration - currentTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-center items-center space-x-6 mb-6">
+                      <motion.button
+                        onClick={toggleShuffle}
+                        className={`p-2 ${shuffle ? "text-white" : "text-gray-300"} hover:text-white`}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
+                      >
+                        <Shuffle className="w-6 h-6" />
+                      </motion.button>
+                      <motion.button
+                        onClick={playPrevious}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Previous song"
+                      >
+                        <SkipBack className="w-7 h-7" strokeWidth={2} />
+                      </motion.button>
+                      <motion.button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="p-4 rounded-full bg-white text-black shadow-lg"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={isPlaying ? "Pause" : "Play"}
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-7 h-7" strokeWidth={2} />
+                        ) : (
+                          <Play className="w-7 h-7" strokeWidth={2} />
+                        )}
+                      </motion.button>
+                      <motion.button
+                        onClick={playNext}
+                        className="p-2 text-white hover:text-gray-300"
+                        whileTap={{ scale: 0.9 }}
+                        aria-label="Next song"
+                      >
+                        <SkipForward className="w-7 h-7" strokeWidth={2} />
+                      </motion.button>
+                      <motion.button
+                        onClick={toggleRepeat}
+                        className={`p-2 ${repeat !== "none" ? "text-white" : "text-gray-300"} hover:text-white`}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={`Repeat: ${repeat}`}
+                      >
+                        <Repeat className="w-6 h-6" />
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <motion.button
+              onClick={() => setIsFullScreen(false)}
+              className="absolute top-4 left-4 p-2 rounded-full bg-black/50 text-white hover:text-gray-300 shadow-lg"
+              whileTap={{ scale: 0.9 }}
+              aria-label="Exit full screen"
+            >
+              <ChevronDown className="w-6 h-6" />
+            </motion.button>
           </div>
         ) : (
-          // Default Mini Player (Compact)
-          <div
-            className="flex items-center justify-between w-full max-w-7xl mx-auto px-3 py-2"
-            {...swipeHandlers}
-          >
-            {/* Song Info */}
+          // Mini Player
+          <div className="flex items-center justify-between w-full max-w-7xl mx-auto px-3 py-2">
             <div className="flex items-center space-x-2 w-1/3">
               <Image
                 src={song.cover || "/images/placeholder.jpg"}
                 alt={`Cover art for ${song.title} by ${song.artist}`}
                 width={56}
                 height={48}
-                className="w-14 h-12 rounded-md object-cover"
+                className="w-14 h-12 rounded-md object-cover shadow-sm"
                 onError={(e) => (e.currentTarget.src = "/images/placeholder.jpg")}
                 priority
               />
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold truncate max-w-[100px] sm:max-w-[130px]">
-                  {song.title}
-                </h3>
+                <h3 className="text-sm font-semibold truncate max-w-[130px]">{song.title}</h3>
                 <p className="text-xs text-gray-400 truncate">{song.artist}</p>
               </div>
-              <div className="flex items-center space-x-1">
-                <motion.button
-                  onClick={() => toggleLike(song.id)}
-                  className="p-1 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={song.liked ? "Unlike song" : "Like song"}
-                >
-                  <motion.div
-                    variants={heartVariants}
-                    animate={song.liked ? "liked" : "unliked"}
-                    initial={song.liked ? "liked" : "unliked"}
-                  >
-                    <Heart
-                      className={`w-4 h-4 fill-current ${song.liked ? "text-red-500" : "text-white"}`}
-                      strokeWidth={2}
-                    />
-                  </motion.div>
-                </motion.button>
-                <motion.button
-                  onClick={() => console.log("Follow artist")}
-                  className="p-1 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Follow artist"
-                >
-                  <UserPlus className="w-4 h-4 fill-current" />
-                </motion.button>
-                <motion.button
-                  onClick={() => console.log("Go to artist page")}
-                  className="p-1 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Go to artist page"
-                >
-                  <Link className="w-4 h-4 fill-current" />
-                </motion.button>
-                <motion.button
-                  onClick={() => console.log("Tip artist")}
-                  className="p-1 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Tip artist"
-                >
-                  <DollarSign className="w-4 h-4 fill-current" />
-                </motion.button>
-                <motion.button
-                  onClick={() => console.log("Add to playlist")}
-                  className="p-1 text-white hover:text-gray-300"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Add to playlist"
-                >
-                  <Plus className="w-4 h-4 fill-current" />
-                </motion.button>
-              </div>
             </div>
-
-            {/* Playback Controls */}
             <div className="flex flex-col items-center w-1/3">
               <div className="flex items-center space-x-2">
-                <motion.button
-                  onClick={toggleShuffle}
-                  className={`p-1 ${shuffle ? "text-white" : "text-gray-400"} hover:text-gray-300 relative`}
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={shuffle ? "Disable shuffle" : "Enable shuffle"}
-                >
-                  <Shuffle className="w-4 h-4 fill-current" />
-                  {shuffle && (
-                    <motion.div
-                      className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full"
-                      variants={dotVariants}
-                      initial="hidden"
-                      animate="visible"
-                      aria-hidden="true"
-                    />
-                  )}
-                </motion.button>
                 <motion.button
                   onClick={playPrevious}
                   className="p-1 text-white hover:text-gray-300"
                   whileTap={{ scale: 0.9 }}
                   aria-label="Previous song"
                 >
-                  <SkipBack className="w-5 h-5 fill-current" strokeWidth={2} />
+                  <SkipBack className="w-5 h-5" strokeWidth={2} />
                 </motion.button>
                 <motion.button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-2 rounded-full bg-white text-black"
+                  className="p-2 rounded-full bg-white text-black shadow-lg"
                   whileTap={{ scale: 0.9 }}
                   aria-label={isPlaying ? "Pause" : "Play"}
                 >
                   {isPlaying ? (
-                    <Pause className="w-5 h-5 fill-current" strokeWidth={2} />
+                    <Pause className="w-5 h-5" strokeWidth={2} />
                   ) : (
-                    <Play className="w-5 h-5 fill-current" strokeWidth={2} />
+                    <Play className="w-5 h-5" strokeWidth={2} />
                   )}
                 </motion.button>
                 <motion.button
@@ -717,36 +990,10 @@ export default function Player({
                   whileTap={{ scale: 0.9 }}
                   aria-label="Next song"
                 >
-                  <SkipForward className="w-5 h-5 fill-current" strokeWidth={2} />
+                  <SkipForward className="w-5 h-5" strokeWidth={2} />
                 </motion.button>
-                <motion.button
-                  onClick={toggleRepeat}
-                  className={`p-1 ${repeat !== "none" ? "text-white" : "text-gray-400"} hover:text-gray-300 relative`}
-                  whileTap={{ scale: 0.9 }}
-                  aria-label={`Repeat: ${repeat}`}
-                >
-                  <Repeat className="w-4 h-4 fill-current" />
-                  {repeat === "one" && (
-                    <span className="text-[10px] absolute bottom-0 right-0">1</span>
-                  )}
-                </motion.button>
-              </div>
-              <div className="w-full flex items-center space-x-1 mt-1">
-                <span className="text-xs text-gray-400">{formatTime(currentTime)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={duration}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  className="w-full h-1 rounded-full cursor-pointer progress-bar"
-                  aria-label="Seek song position"
-                />
-                <span className="text-xs text-gray-400">{formatTime(duration)}</span>
               </div>
             </div>
-
-            {/* Additional Controls (Desktop Only) */}
             <div className="hidden sm:flex items-center space-x-2 w-1/3 justify-end">
               <div className="flex items-center space-x-1">
                 <motion.button
@@ -756,9 +1003,9 @@ export default function Player({
                   aria-label={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted || volume === 0 ? (
-                    <VolumeX className="w-5 h-5 fill-current" />
+                    <VolumeX className="w-5 h-5" />
                   ) : (
-                    <Volume2 className="w-5 h-5 fill-current" />
+                    <Volume2 className="w-5 h-5" />
                   )}
                 </motion.button>
                 <input
@@ -769,6 +1016,7 @@ export default function Player({
                   value={volume}
                   onChange={handleVolumeChange}
                   className="w-16 h-1 rounded-full cursor-pointer volume-bar"
+                  aria-label="Volume control"
                 />
               </div>
               {isDeviceSelectionSupported && audioDevices.length > 1 && (
@@ -778,7 +1026,7 @@ export default function Player({
                   whileTap={{ scale: 0.9 }}
                   aria-label="Open device selection panel"
                 >
-                  <Speaker className="w-5 h-5 fill-current" />
+                  <Speaker className="w-5 h-5" />
                 </motion.button>
               )}
               <motion.button
@@ -787,44 +1035,12 @@ export default function Player({
                 whileTap={{ scale: 0.9 }}
                 aria-label="Enter full screen"
               >
-                <Maximize2 className="w-5 h-5 fill-current" />
+                <Maximize2 className="w-5 h-5" />
               </motion.button>
             </div>
           </div>
         )}
 
-        {/* Queue Panel */}
-        {showQueue && (
-          <motion.div
-            className="absolute bottom-16 left-0 right-0 bg-gray-800 p-4 rounded-t-lg max-h-64 overflow-y-auto"
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            exit={{ y: 100 }}
-          >
-            <h4 className="text-lg font-bold mb-2">Queue</h4>
-            {queue.length === 0 ? (
-              <p className="text-gray-400">No songs in queue.</p>
-            ) : (
-              <ul>
-                {queue.map((qSong, index) => (
-                  <li key={qSong.id} className="flex justify-between items-center py-2">
-                    <span>
-                      {qSong.title} - {qSong.artist}
-                    </span>
-                    <button
-                      onClick={() => removeFromQueue(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </motion.div>
-        )}
-
-        {/* Device Selection Panel */}
         {showDevicePanel && (
           <DeviceSelectionPanel
             devices={audioDevices}
@@ -836,7 +1052,7 @@ export default function Player({
 
         <audio
           ref={audioRef}
-          src={song.filePath}
+          src={song.audio} // Changed from song.filePath
           onEnded={playNext}
           onError={(e) => {
             console.error("Audio playback error:", e);

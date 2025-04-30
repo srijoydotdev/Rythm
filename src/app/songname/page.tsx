@@ -18,7 +18,7 @@ import {
   ChevronDown, // Add ChevronDown import
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { Song } from "@/types"; // Adjust path to your Song type
+import { Song } from "@/app/types"; // Adjust path to your Song type
 
 // Mock function to fetch song data from the cloud (same as Player component)
 const fetchSongByName = async (songname: string): Promise<Song | null> => {

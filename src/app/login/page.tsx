@@ -1,49 +1,53 @@
-// src/app/login/page.tsx
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../app/lib/supabase";
-import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { motion } from "framer-motion";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-    } else {
-      window.location.href = "/song"; // Redirect to song page
+    try {
+      if (isSignUp) {
+        await signUpWithEmail(email, password);
+        toast.success("Signed up! Please check your email to confirm.");
+      } else {
+        await signInWithEmail(email, password);
+        toast.success("Logged in!");
+        router.push("/song");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: "http://localhost:3000/api/auth/callback" },
-    });
-    if (error) {
-      setError(error.message);
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
-      <div className="bg-[#1D1D1D] rounded-lg p-8 max-w-md w-full shadow-lg">
-        <img src="/logo.svg" alt="Logo" className="w-16 h-16 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-white text-center mb-6">Sign In</h1>
-        {error && (
-          <div className="mb-4 p-3 bg-red-500/20 text-red-400 rounded">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="text-white text-sm font-medium">
+    <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[#1A1A1A] p-8 rounded-lg shadow-lg w-full max-w-md"
+      >
+        <h2 className="text-2xl font-bold mb-6">{isSignUp ? "Sign Up" : "Log In"}</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium mb-1">
               Email
             </label>
             <input
@@ -51,13 +55,12 @@ export default function Login() {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full mt-1 p-3 bg-[#2A2A2A] text-white rounded-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="w-full p-2 bg-black border border-white/20 rounded text-white"
               required
             />
           </div>
-          <div>
-            <label htmlFor="password" className="text-white text-sm font-medium">
+          <div className="mb-6">
+            <label htmlFor="password" className="block text-sm font-medium mb-1">
               Password
             </label>
             <input
@@ -65,32 +68,35 @@ export default function Login() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full mt-1 p-3 bg-[#2A2A2A] text-white rounded-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="w-full p-2 bg-black border border-white/20 rounded text-white"
               required
             />
           </div>
-          <button
+          <motion.button
             type="submit"
-            className="w-full bg-white text-black font-semibold py-3 rounded-md hover:bg-gray-200 transition"
+            className="w-full bg-yellow-500 text-black py-2 rounded hover:bg-yellow-400"
+            whileTap={{ scale: 0.95 }}
           >
-            Sign In
-          </button>
+            {isSignUp ? "Sign Up" : "Log In"}
+          </motion.button>
         </form>
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full mt-4 bg-[#2A2A2A] text-white font-semibold py-3 rounded-md border border-white/20 hover:bg-white/10 flex items-center justify-center gap-2"
+        <motion.button
+          onClick={handleGoogleSignIn}
+          className="w-full mt-4 bg-white text-black py-2 rounded hover:bg-gray-200"
+          whileTap={{ scale: 0.95 }}
         >
-          <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
-          Sign In with Google
-        </button>
-        <p className="text-white text-center mt-4">
-          Don’t have an account?{" "}
-          <Link href="/signup" className="text-yellow-500 hover:underline">
-            Sign Up
-          </Link>
+          Sign in with Google
+        </motion.button>
+        <p className="mt-4 text-center text-sm">
+          {isSignUp ? "Already have an account?" : "Don't have an account?"}
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-yellow-500 hover:underline ml-1"
+          >
+            {isSignUp ? "Log In" : "Sign Up"}
+          </button>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

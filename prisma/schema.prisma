@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+
 }
 
 datasource db {
@@ -90,7 +90,7 @@ model Song {
 model Playlist {
   id            Int             @id @default(autoincrement())
   name          String
-  description   String?         @default("") // Added for Spotify-like feel
+  description   String?         @default("")
   userId        String          @map("user_id")
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   songs         PlaylistSong[]
@@ -106,6 +106,7 @@ model PlaylistSong {
   playlist      Playlist        @relation(fields: [playlistId], references: [id], onDelete: Cascade)
   song          Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
   addedAt       DateTime        @default(now())
+  order         Int             @default(0) // Explicit song order
   @@id([playlistId, songId])
   @@map("playlist_songs")
 }

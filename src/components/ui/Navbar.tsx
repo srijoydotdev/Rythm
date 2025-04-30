@@ -1,17 +1,19 @@
-// src/components/ui/Navbar.tsx
 "use client";
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bell, Compass } from "lucide-react";
+import { Bell, Compass, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SearchBar from "../searchbox";
-import { supabase } from "../../app/lib/supabase";
+import { createClient } from "@/utils/client";
+import toast from "react-hot-toast";
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const pathname = usePathname();
+  const supabase = createClient();
 
   // Fetch user session
   useEffect(() => {
@@ -25,12 +27,27 @@ export default function Navbar() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
+      if (event === "SIGNED_OUT") {
+        toast.success("Signed out successfully");
+      }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setShowProfileMenu(false);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to sign out");
+    }
+  };
 
   const compassVariants = {
     hover: { rotate: 360, transition: { duration: 0.5 } },
@@ -82,16 +99,52 @@ export default function Navbar() {
       </div>
 
       {/* Right Section: Auth, Notifications, Profile */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3 relative">
         <Bell className="w-6 h-6 text-white cursor-pointer" />
         {user ? (
-          <Link href="/profiles">
-            <img
-              src={user.user_metadata?.profilePic || "/default-profile-pic.jpg"}
-              alt="Profile"
-              className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-white/20"
-            />
-          </Link>
+          <div className="relative">
+            <motion.button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="focus:outline-none"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              aria-label="Toggle profile menu"
+            >
+              <img
+                src={user.user_metadata?.profilePic || "/default-profile-pic.jpg"}
+                alt="Profile"
+                className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-white/20"
+              />
+            </motion.button>
+            {showProfileMenu && (
+              <motion.div
+                className="absolute right-0 mt-2 w-48 bg-[#2A2A2A] rounded-lg shadow-lg z-10"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ul className="py-2">
+                  <li>
+                    <Link href="/profiles">
+                      <span className="block px-4 py-2 text-sm text-white hover:bg-[#3A3A3A] cursor-pointer">
+                        Profile
+                      </span>
+                    </Link>
+                  </li>
+                  <li>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-4 py-2 text-sm text-white hover:bg-[#3A3A3A] flex items-center space-x-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
+                  </li>
+                </ul>
+              </motion.div>
+            )}
+          </div>
         ) : (
           <div className="flex space-x-2">
             <Link href="/login">
